@@ -173,3 +173,69 @@ pnpm build     # ✓ Builds successfully
 - Dashboard available at URL shown by `convex dev`
 - Tailwind v4 uses `@import "tailwindcss"` syntax
 - shadcn/ui v4 uses `@tailwindcss/vite` plugin
+
+---
+
+## Session 2: Roadmap Planning
+
+### Decisions Made
+
+#### 7. Development Approach: Vertical Slices
+
+**Decision:** Build feature-by-feature (vertical), not layer-by-layer (horizontal).
+
+**Rationale:**
+- See working features fast
+- Validate decisions early
+- Natural fit for Convex's reactive model
+- We have Python version as domain reference (not discovering requirements)
+
+**Contrast with original:**
+The Python version started with the core library (horizontal). For TypeScript/Convex, vertical makes more sense because:
+- Convex tightly couples schema, functions, and UI
+- Real-time sync means the UI is immediate feedback
+- Less upfront planning, more iteration
+
+#### 8. Token Counting: Deferred to LLM Integration
+
+**Decision:** Don't implement token counting until Slice 5 (LLM integration).
+
+**Rationale:**
+- Start simpler (no external library dependencies yet)
+- Token counting is most valuable when actually using LLMs
+- Integration will be a test case for adapting non-Convex libraries
+
+**Risk acknowledged:**
+- Existing Python solution uses `tiktoken`/`litellm`
+- These may not work in Convex runtime
+- Will need to evaluate JS alternatives when we get there
+- Documented as intentional integration test
+
+### Accomplishments
+
+- [x] Decided on vertical slice approach
+- [x] Created detailed ROADMAP.md with 6 slices
+- [x] Defined Slice 1: Basic Blocks (minimal scope)
+- [x] Documented token counting deferral and challenges
+- [x] Established dependency graph between slices
+
+### Slice Plan
+
+| Slice | Focus | Key Additions |
+|-------|-------|---------------|
+| 1 | Basic Blocks | Schema, CRUD, list UI |
+| 2 | Zones | Zone field, three-column layout |
+| 3 | Drag and Drop | @dnd-kit, move/reorder |
+| 4 | Block Editor | TanStack Router, edit page |
+| 5 | LLM + Tokens | Token counting, chat, streaming |
+| 6 | Polish | Theme, search, import/export |
+
+### Next: Slice 1
+
+Starting with the simplest possible blocks implementation:
+- No zones
+- No tokens
+- No routing
+- Just: create, list, delete
+
+See [ROADMAP.md](./ROADMAP.md) for full details.
