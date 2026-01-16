@@ -10,6 +10,8 @@
 
 import type * as blocks from "../blocks.js";
 import type * as counters from "../counters.js";
+import type * as http from "../http.js";
+import type * as testing from "../testing.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +22,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   blocks: typeof blocks;
   counters: typeof counters;
+  http: typeof http;
+  testing: typeof testing;
 }>;
 
 /**

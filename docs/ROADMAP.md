@@ -27,20 +27,20 @@ blocks: defineTable({
 ```
 
 ### Convex Functions
-- [ ] `blocks.list` - Get all blocks
-- [ ] `blocks.get` - Get single block by ID
-- [ ] `blocks.create` - Create new block
-- [ ] `blocks.delete` - Delete block
+- [x] `blocks.list` - Get all blocks
+- [x] `blocks.get` - Get single block by ID
+- [x] `blocks.create` - Create new block
+- [x] `blocks.remove` - Delete block
 
 ### UI
-- [ ] Block list component
-- [ ] Add block form (content + type)
-- [ ] Delete button on blocks
-- [ ] Replace counter demo with blocks demo
+- [x] Block list component
+- [x] Add block form (content + type)
+- [x] Delete button on blocks
+- [x] Replace counter demo with blocks demo
 
 ### Tests
-- [ ] Convex function tests
-- [ ] Component tests
+- [x] E2E tests with test data isolation
+- [x] HTTP endpoints for test reset/create
 
 **No zones yet. No tokens yet. Just blocks.**
 
@@ -191,8 +191,8 @@ blocks: defineTable({
 | Slice | Status | Notes |
 |-------|--------|-------|
 | 0. Project Setup | ✅ Done | Counter demo working |
-| 1. Basic Blocks | 🔜 Next | - |
-| 2. Zones | Planned | - |
+| 1. Basic Blocks | ✅ Done | CRUD + E2E test isolation |
+| 2. Zones | 🔜 Next | - |
 | 3. Drag and Drop | Planned | - |
 | 4. Block Editor | Planned | - |
 | 5. LLM + Tokens | Planned | Token counting integration test |

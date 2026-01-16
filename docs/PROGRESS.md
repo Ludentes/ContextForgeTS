@@ -239,3 +239,67 @@ Starting with the simplest possible blocks implementation:
 - Just: create, list, delete
 
 See [ROADMAP.md](./ROADMAP.md) for full details.
+
+---
+
+## Session 3: Slice 1 - Basic Blocks
+
+### Accomplishments
+
+#### Blocks Implementation
+- [x] Created blocks schema with `content`, `type`, `createdAt`, `updatedAt`
+- [x] Implemented Convex functions: `list`, `get`, `create`, `remove`
+- [x] Built BlocksDemo UI with AddBlockForm, BlockCard, BlockList
+- [x] Real-time sync working (blocks appear/disappear instantly)
+
+#### E2E Test Isolation
+- [x] Added `testData` field to schema for marking test records
+- [x] Updated `create` mutation to accept optional `testData` flag
+- [x] Created `convex/testing.ts` with reset functions
+- [x] Created `convex/http.ts` with HTTP endpoints:
+  - `POST /testing/reset` - Deletes all test data
+  - `POST /testing/blocks` - Creates blocks with `testData: true`
+- [x] Updated E2E tests with proper isolation:
+  - Global setup resets test data before all tests
+  - Serial execution for Blocks tests (avoids parallel interference)
+  - Cleanup after test suite completes
+- [x] Reset logic deletes blocks where `testData === true` OR content starts with `"E2E Test:"`
+
+### Decisions Made
+
+#### 9. E2E Test Data Isolation Strategy
+
+**Decision:** Use a combination of approaches for test isolation:
+1. `testData` boolean field on records
+2. Content pattern matching (`"E2E Test:"` prefix)
+3. HTTP endpoints for reset operations
+4. Serial test execution within the Blocks suite
+
+**Rationale:**
+- `testData` field allows API-created test data to be tracked
+- Content pattern matching catches UI-created blocks in tests
+- HTTP endpoints enable reset from Playwright (can't call internal mutations)
+- Serial execution prevents parallel test interference with shared data
+
+**Key URLs (local dev):**
+- Convex WebSocket API: `http://127.0.0.1:3210`
+- Convex HTTP Actions: `http://127.0.0.1:3211`
+
+### Current State
+
+```bash
+pnpm lint           # ✓ Passes
+pnpm test:run       # ✓ Passes
+pnpm playwright test # ✓ 5 tests pass
+pnpm build          # ✓ Builds successfully
+```
+
+**Working features:**
+- Block CRUD (create, list, delete)
+- Real-time sync via Convex
+- E2E tests with proper isolation
+- Dark/light theme toggle
+
+### Next: Slice 2 - Zones
+
+Adding zones to organize blocks into PERMANENT, STABLE, WORKING categories.

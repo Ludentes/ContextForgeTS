@@ -14,5 +14,7 @@ export default defineSchema({
     type: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    // Test data flag - marked records can be bulk deleted
+    testData: v.optional(v.boolean()),
   }),
 })
