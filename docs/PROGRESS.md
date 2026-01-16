@@ -1,0 +1,175 @@
+# Development Progress
+
+## Session 1: Project Initialization
+
+### Context
+
+This is a greenfield rewrite of ContextForge, originally a Python (FastAPI) backend + React frontend application for managing LLM context windows. The goal is to simplify the architecture using modern TypeScript tooling.
+
+### Decisions Made
+
+#### 1. Backend: Convex over FastAPI
+
+**Decision:** Replace Python/FastAPI backend with Convex.
+
+**Rationale:**
+- Pure TypeScript stack (no Python ↔ TypeScript type gap)
+- Real-time sync built-in (no manual cache invalidation)
+- Server-side logic with guaranteed consistency
+- Zero infrastructure management
+- Simpler architecture (fewer moving parts)
+
+**Trade-offs:**
+- Vendor lock-in to Convex
+- Less control over database queries
+- Learning curve for team
+
+#### 2. State Management: Convex Only (No Zustand)
+
+**Decision:** Use Convex's `useQuery`/`useMutation` for all server state. Use React's `useState`/`useContext` for UI-only state.
+
+**Rationale:**
+- Convex handles reactivity automatically
+- No need for Zustand's client-side store
+- Simpler mental model
+- Fewer dependencies
+
+**What this means:**
+- No Zustand
+- No React Query wrapper around Convex
+- Server is the source of truth
+
+#### 3. Routing: TanStack Router (Client-Side SPA)
+
+**Decision:** Use TanStack Router for client-side routing, not TanStack Start (SSR).
+
+**Rationale:**
+- Simpler than SSR setup
+- Context management tool doesn't need SEO
+- Type-safe routing is the main benefit we want
+- Can add SSR later if needed
+
+#### 4. Styling: Tailwind v4 + shadcn/ui
+
+**Decision:** Use Tailwind CSS v4 with shadcn/ui components.
+
+**Rationale:**
+- Tailwind v4 is the latest with better performance
+- shadcn/ui provides copy-paste components (not npm dependency)
+- Good defaults, easy to customize
+
+#### 5. Testing: Vitest + Playwright
+
+**Decision:** Vitest for unit/integration tests, Playwright for E2E.
+
+**Rationale:**
+- Vitest is fast and Vite-native
+- Playwright is modern and reliable
+- Convex provides `convex-test` for backend function testing
+
+#### 6. Package Manager: pnpm
+
+**Decision:** Use pnpm over npm/yarn.
+
+**Rationale:**
+- Faster installs
+- Disk-efficient (symlinked packages)
+- Strict by default
+
+---
+
+### Accomplishments
+
+#### Project Setup
+- [x] Initialized Vite + React + TypeScript project
+- [x] Configured Tailwind CSS v4 with Vite plugin
+- [x] Initialized shadcn/ui with button component
+- [x] Added path alias (`@/` → `src/`)
+- [x] Set up dark mode toggle (basic implementation)
+
+#### Convex Integration
+- [x] Installed and configured Convex
+- [x] Created database schema (`counters` table)
+- [x] Implemented queries: `list`, `get`
+- [x] Implemented mutations: `create`, `increment`, `decrement`, `reset`
+- [x] Wired up ConvexProvider in React
+- [x] Built counter demo UI showing real-time sync
+
+#### Testing Setup
+- [x] Configured Vitest with jsdom environment
+- [x] Added @testing-library/react and jest-dom
+- [x] Created sample component test
+- [x] Configured Playwright for E2E tests
+- [x] Created sample E2E test specs
+
+#### Code Quality
+- [x] Configured ESLint with TypeScript and React rules
+- [x] Added Prettier with eslint-config-prettier
+- [x] Set up .prettierrc and .prettierignore
+- [x] Fixed ESLint conflicts with shadcn exports
+
+#### Documentation
+- [x] Created ARCHITECTURE.md with design decisions
+- [x] Created REFERENCES.md with useful links
+- [x] Created STRUCTURE.md with repo layout
+- [x] Created PROGRESS.md (this file)
+- [x] Updated README.md with project overview
+
+#### Configuration
+- [x] Created .env.example template
+- [x] Updated .gitignore for Convex, Playwright, etc.
+- [x] Added npm scripts for all common tasks
+
+---
+
+### Current State
+
+The project is fully initialized and ready for feature development:
+
+```bash
+pnpm lint      # ✓ Passes
+pnpm test:run  # ✓ 2 tests pass
+pnpm build     # ✓ Builds successfully
+```
+
+**Working features:**
+- Counter demo with real-time Convex sync
+- Dark/light theme toggle
+- shadcn/ui button variants
+- Tailwind styling
+
+**Not yet implemented:**
+- TanStack Router (installed, not configured)
+- Zone management (core feature)
+- Block CRUD operations
+- Token counting
+- LLM integration
+
+---
+
+### Next Steps
+
+1. **Configure TanStack Router** - Set up file-based routing
+2. **Design block schema** - Define the blocks table in Convex
+3. **Build zone layout** - Three-panel UI for zones
+4. **Implement block CRUD** - Create, read, update, delete blocks
+5. **Add drag-and-drop** - Move blocks between zones
+6. **Token counting** - Server-side token calculation
+
+---
+
+### Open Questions
+
+1. **Token counting library** - `gpt-tokenizer` vs `tiktoken` WASM?
+2. **Auth requirements** - Multi-user or single-user for MVP?
+3. **Compression** - Still needed with Convex storage?
+4. **Theme implementation** - Current toggle is a hack; proper provider needed?
+
+---
+
+### Session Notes
+
+- Convex local dev runs on `http://127.0.0.1:3210`
+- Dashboard available at URL shown by `convex dev`
+- Tailwind v4 uses `@import "tailwindcss"` syntax
+- shadcn/ui v4 uses `@tailwindcss/vite` plugin
