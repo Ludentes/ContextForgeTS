@@ -215,6 +215,54 @@ export const startClaudeGeneration = mutation({
 })
 
 /**
+ * Start a brainstorm streaming generation.
+ *
+ * This mutation:
+ * 1. Creates a generation record
+ * 2. Schedules the Claude brainstorm streaming action
+ * 3. Returns the generation ID immediately for client subscription
+ *
+ * Unlike startClaudeGeneration, this accepts conversation history
+ * and does NOT auto-save to blocks.
+ */
+export const startBrainstormGeneration = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    conversationHistory: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        content: v.string(),
+      })
+    ),
+    newMessage: v.string(),
+    systemPrompt: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Create generation record
+    const now = Date.now()
+    const generationId = await ctx.db.insert("generations", {
+      sessionId: args.sessionId,
+      provider: "claude",
+      status: "streaming",
+      text: "",
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    // Schedule the streaming action to run immediately
+    await ctx.scheduler.runAfter(0, api.claudeNode.streamBrainstormMessage, {
+      generationId,
+      sessionId: args.sessionId,
+      conversationHistory: args.conversationHistory,
+      newMessage: args.newMessage,
+      systemPrompt: args.systemPrompt,
+    })
+
+    return { generationId }
+  },
+})
+
+/**
  * Save completed generation to blocks.
  * Called when generation completes to persist the result.
  */
@@ -256,6 +304,59 @@ export const saveToBlocks = mutation({
       content: generation.text,
       type: "ASSISTANT",
       zone: "WORKING",
+      position: maxPosition + 1,
+      createdAt: now,
+      updatedAt: now,
+      // Token tracking
+      tokens,
+      originalTokens: tokens,
+      tokenModel: DEFAULT_TOKEN_MODEL,
+    })
+  },
+})
+
+/**
+ * Save a brainstorm message as a block.
+ *
+ * This is called manually by the user to save individual messages
+ * from a brainstorm conversation with zone selection.
+ */
+export const saveBrainstormMessage = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    content: v.string(),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    zone: v.union(v.literal("PERMANENT"), v.literal("STABLE"), v.literal("WORKING")),
+  },
+  handler: async (ctx, args) => {
+    if (!args.content.trim()) {
+      throw new Error("Message has no content")
+    }
+
+    // Get max position for the target zone
+    const existingBlocks = await ctx.db
+      .query("blocks")
+      .withIndex("by_session_zone", (q) =>
+        q.eq("sessionId", args.sessionId).eq("zone", args.zone)
+      )
+      .collect()
+
+    const maxPosition = existingBlocks.reduce(
+      (max, b) => Math.max(max, b.position),
+      -1
+    )
+
+    // Create block with message content
+    // Use BRAINSTORM_USER or BRAINSTORM_ASSISTANT type based on role
+    const now = Date.now()
+    const tokens = countTokens(args.content)
+    const blockType = args.role === "user" ? "BRAINSTORM_USER" : "BRAINSTORM_ASSISTANT"
+
+    return await ctx.db.insert("blocks", {
+      sessionId: args.sessionId,
+      content: args.content,
+      type: blockType,
+      zone: args.zone,
       position: maxPosition + 1,
       createdAt: now,
       updatedAt: now,

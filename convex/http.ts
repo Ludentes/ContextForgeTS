@@ -15,7 +15,7 @@ import { httpAction } from "./_generated/server"
 import { internal } from "./_generated/api"
 import { api } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
-import { assembleContext } from "./lib/context"
+import { assembleContext, assembleContextWithConversation } from "./lib/context"
 import {
   streamChat as streamOllama,
   checkHealth as checkOllamaHealth,
@@ -256,6 +256,131 @@ http.route({
 // Handle CORS preflight for chat endpoint
 http.route({
   path: "/api/chat",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }),
+})
+
+/**
+ * Ollama brainstorm endpoint - streams LLM response with conversation history.
+ *
+ * Unlike /api/chat, this:
+ * - Accepts conversation history for multi-turn conversations
+ * - Does NOT auto-save to blocks (user manually saves)
+ */
+http.route({
+  path: "/api/brainstorm",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await request.json()
+    const { sessionId, conversationHistory, newMessage, systemPrompt } = body as {
+      sessionId: string
+      conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
+      newMessage: string
+      systemPrompt?: string
+    }
+
+    // Validate required fields
+    if (!sessionId || !newMessage) {
+      return new Response(
+        JSON.stringify({ error: "sessionId and newMessage are required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      )
+    }
+
+    // Check Ollama availability
+    const ollamaStatus = await checkOllamaHealth()
+    if (!ollamaStatus.ok) {
+      return new Response(
+        JSON.stringify({
+          error: `Ollama is not available at ${ollamaStatus.url}`,
+          details: ollamaStatus.error,
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      )
+    }
+
+    // Get blocks for context assembly
+    const blocks = await ctx.runQuery(api.blocks.list, {
+      sessionId: sessionId as Id<"sessions">,
+    })
+
+    // Assemble context with conversation history
+    const messages = assembleContextWithConversation(
+      blocks,
+      conversationHistory || [],
+      newMessage,
+      systemPrompt
+    )
+
+    // Create streaming response using TransformStream
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
+    const encoder = new TextEncoder()
+
+    // Stream in background (don't await)
+    ;(async () => {
+      try {
+        let fullResponse = ""
+
+        // Stream from Ollama
+        for await (const chunk of streamOllama(messages)) {
+          fullResponse += chunk
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "text-delta", delta: chunk })}\n\n`
+            )
+          )
+        }
+
+        // Send finish event with full response (for client to add to conversation)
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "finish", finishReason: "stop", fullText: fullResponse })}\n\n`
+          )
+        )
+        await writer.write(encoder.encode("data: [DONE]\n\n"))
+
+        // NOTE: No auto-save for brainstorm - user manually saves messages
+
+        await writer.close()
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error"
+        try {
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "error", error: errorMessage })}\n\n`
+            )
+          )
+        } catch {
+          // Writer may already be closed
+        }
+        await writer.close()
+      }
+    })()
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        ...corsHeaders,
+      },
+    })
+  }),
+})
+
+// Handle CORS preflight for brainstorm endpoint
+http.route({
+  path: "/api/brainstorm",
   method: "OPTIONS",
   handler: httpAction(async () => {
     return new Response(null, { status: 204, headers: corsHeaders })

@@ -12,6 +12,7 @@ import { DroppableZone, SortableBlock, ZONES, type Zone } from "@/components/dnd
 import { useFileDrop } from "@/hooks/useFileDrop"
 import { useSession } from "@/contexts/SessionContext"
 import { GeneratePanel } from "@/components/GeneratePanel"
+import { BrainstormPanel } from "@/components/BrainstormPanel"
 import { SessionMetrics, BlockTokenBadge, ZoneHeader } from "@/components/metrics"
 import { ContextExport } from "@/components/ContextExport"
 import { cn } from "@/lib/utils"
@@ -514,6 +515,11 @@ function HomePage() {
       {/* LLM Generation Panel */}
       <section>
         <GeneratePanel sessionId={sessionId} />
+      </section>
+
+      {/* Brainstorm Panel */}
+      <section>
+        <BrainstormPanel sessionId={sessionId} />
       </section>
 
       <section>

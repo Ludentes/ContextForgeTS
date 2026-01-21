@@ -17,7 +17,7 @@ import { query as claudeQuery } from "@anthropic-ai/claude-agent-sdk"
 import { spawn, execSync } from "child_process"
 import * as fs from "fs"
 import * as os from "os"
-import { assembleContext } from "./lib/context"
+import { assembleContext, assembleContextWithConversation } from "./lib/context"
 
 // Get Claude Code executable path by trying to locate it
 const getClaudeCodePath = (): string | undefined => {
@@ -417,6 +417,153 @@ export const streamGenerateWithContext = action({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error(`[Claude Stream] Error: ${errorMessage}`)
+
+      // Flush any partial content
+      await flushBuffer()
+
+      // Mark as failed
+      await ctx.runMutation(internal.generations.fail, {
+        generationId: args.generationId,
+        error: `Claude Code error: ${errorMessage}`,
+      })
+    }
+  },
+})
+
+/**
+ * Stream brainstorm message with context and conversation history.
+ *
+ * This action is called by the scheduler from startBrainstormGeneration mutation.
+ * It assembles context from blocks, includes conversation history, and streams the response.
+ * Unlike streamGenerateWithContext, this does NOT auto-save to blocks.
+ */
+export const streamBrainstormMessage = action({
+  args: {
+    generationId: v.id("generations"),
+    sessionId: v.id("sessions"),
+    conversationHistory: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        content: v.string(),
+      })
+    ),
+    newMessage: v.string(),
+    systemPrompt: v.optional(v.string()),
+    throttleMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const throttleMs = args.throttleMs ?? 100
+    const startTime = Date.now()
+
+    // Get blocks for context assembly
+    const blocks = await ctx.runQuery(api.blocks.list, {
+      sessionId: args.sessionId,
+    })
+
+    // Assemble context with conversation history
+    const messages = assembleContextWithConversation(
+      blocks,
+      args.conversationHistory,
+      args.newMessage,
+      args.systemPrompt
+    )
+    const prompt = formatMessagesAsPrompt(messages)
+
+    let buffer = ""
+    let lastFlush = Date.now()
+
+    // Usage tracking
+    let inputTokens: number | undefined
+    let outputTokens: number | undefined
+    let costUsd: number | undefined
+
+    // Helper to flush buffer to database
+    const flushBuffer = async () => {
+      if (buffer.length > 0) {
+        await ctx.runMutation(internal.generations.appendChunk, {
+          generationId: args.generationId,
+          chunk: buffer,
+        })
+        buffer = ""
+        lastFlush = Date.now()
+      }
+    }
+
+    try {
+      let hasReceivedStreamEvents = false
+
+      for await (const message of claudeQuery({
+        prompt,
+        options: {
+          allowedTools: [], // Text-only mode
+          maxTurns: 1,
+          systemPrompt: args.systemPrompt,
+          pathToClaudeCodeExecutable: getClaudeCodePath(),
+          includePartialMessages: true, // Enable streaming deltas
+        },
+      })) {
+        const msgType = (message as Record<string, unknown>).type as string
+
+        // Handle SDKPartialAssistantMessage (type: 'stream_event') for true streaming
+        if (msgType === "stream_event") {
+          const event = (message as Record<string, unknown>).event as Record<string, unknown> | undefined
+          if (event && event.type === "content_block_delta") {
+            const delta = event.delta as Record<string, unknown> | undefined
+            if (delta && delta.type === "text_delta" && typeof delta.text === "string") {
+              hasReceivedStreamEvents = true
+              buffer += delta.text
+
+              // Throttle writes
+              const now = Date.now()
+              if (now - lastFlush >= throttleMs) {
+                await flushBuffer()
+              }
+            }
+          }
+        }
+
+        // Fallback: handle assistant messages if we didn't receive stream events
+        if (msgType === "assistant" && !hasReceivedStreamEvents) {
+          const msg = message as Record<string, unknown>
+          const msgContent = msg.message as Record<string, unknown> | undefined
+          const content = msgContent?.content as Array<Record<string, unknown>> | undefined
+          if (content) {
+            for (const block of content) {
+              if (block.type === "text" && typeof block.text === "string") {
+                buffer += block.text
+                await flushBuffer()
+              }
+            }
+          }
+        }
+
+        // Capture usage stats from result message
+        if (msgType === "result") {
+          const msg = message as Record<string, unknown>
+          const usage = msg.usage as Record<string, unknown> | undefined
+          if (usage) {
+            inputTokens = usage.input_tokens as number | undefined
+            outputTokens = usage.output_tokens as number | undefined
+          }
+          costUsd = msg.total_cost_usd as number | undefined
+        }
+      }
+
+      // Final flush of any remaining buffer
+      await flushBuffer()
+
+      // Mark as complete with usage stats (no auto-save to blocks)
+      const durationMs = Date.now() - startTime
+      await ctx.runMutation(internal.generations.completeWithUsage, {
+        generationId: args.generationId,
+        inputTokens,
+        outputTokens,
+        costUsd,
+        durationMs,
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`[Claude Brainstorm] Error: ${errorMessage}`)
 
       // Flush any partial content
       await flushBuffer()
