@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react"
+import { useQuery } from "convex/react"
+import { api } from "../../convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { useGenerate } from "@/hooks/useGenerate"
 import { useClaudeGenerate } from "@/hooks/useClaudeGenerate"
+import { GenerationUsage } from "@/components/metrics"
 import type { Id } from "../../convex/_generated/dataModel"
 
 type Provider = "ollama" | "claude"
@@ -97,6 +100,9 @@ export function GeneratePanel({ sessionId }: GeneratePanelProps) {
   const [showSystem, setShowSystem] = useState(false)
   const [provider, setProvider] = useState<Provider>("ollama")
   const health = useProviderHealth()
+
+  // Get latest generation to display usage stats
+  const latestGeneration = useQuery(api.generations.getLatest, { sessionId })
 
   // Use Ollama hook (HTTP streaming)
   const ollamaHook = useGenerate({
@@ -260,6 +266,18 @@ export function GeneratePanel({ sessionId }: GeneratePanelProps) {
               </span>
             )}
           </div>
+          {/* Usage stats after completion */}
+          {!isGenerating && latestGeneration?.status === "complete" && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <GenerationUsage
+                inputTokens={latestGeneration.inputTokens ?? undefined}
+                outputTokens={latestGeneration.outputTokens ?? undefined}
+                totalTokens={latestGeneration.totalTokens ?? undefined}
+                costUsd={latestGeneration.costUsd ?? undefined}
+                durationMs={latestGeneration.durationMs ?? undefined}
+              />
+            </div>
+          )}
         </div>
       )}
 

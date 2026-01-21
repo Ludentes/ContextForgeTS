@@ -3,6 +3,7 @@ import type { MutationCtx } from "./_generated/server"
 import { v } from "convex/values"
 import type { Id } from "./_generated/dataModel"
 import { zoneValidator, type Zone } from "./lib/validators"
+import { countTokens, DEFAULT_TOKEN_MODEL } from "./lib/tokenizer"
 
 // ============ Internal functions (for use by other Convex functions) ============
 
@@ -23,17 +24,18 @@ export const removeInternal = internalMutation({
 })
 
 // Get next position for a zone within a session
+// NOTE: Uses .first() instead of .collect() to avoid fetching all blocks (N+1 prevention)
 async function getNextPosition(
   ctx: MutationCtx,
   sessionId: Id<"sessions">,
   zone: Zone
 ): Promise<number> {
-  const blocks = await ctx.db
+  const lastBlock = await ctx.db
     .query("blocks")
     .withIndex("by_session_zone", (q) => q.eq("sessionId", sessionId).eq("zone", zone))
-    .collect()
-  if (blocks.length === 0) return 0
-  return Math.max(...blocks.map((b) => b.position)) + 1
+    .order("desc")
+    .first()
+  return lastBlock ? lastBlock.position + 1 : 0
 }
 
 // ============ Public functions ============
@@ -92,6 +94,9 @@ export const create = mutation({
     const position = await getNextPosition(ctx, args.sessionId, zone)
     const now = Date.now()
 
+    // Count tokens for the content
+    const tokens = countTokens(args.content)
+
     // Update session's updatedAt
     await ctx.db.patch(args.sessionId, { updatedAt: now })
 
@@ -104,6 +109,10 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
       testData: args.testData,
+      // Token tracking
+      tokens,
+      originalTokens: tokens,
+      tokenModel: DEFAULT_TOKEN_MODEL,
     })
   },
 })
@@ -176,12 +185,21 @@ export const update = mutation({
     if (!block) throw new Error("Block not found")
 
     const now = Date.now()
-    const updates: { content?: string; type?: string; updatedAt: number } = {
+    const updates: {
+      content?: string
+      type?: string
+      updatedAt: number
+      tokens?: number
+      tokenModel?: string
+    } = {
       updatedAt: now,
     }
 
     if (args.content !== undefined) {
       updates.content = args.content
+      // Recount tokens when content changes
+      updates.tokens = countTokens(args.content)
+      updates.tokenModel = DEFAULT_TOKEN_MODEL
     }
     if (args.type !== undefined) {
       updates.type = args.type

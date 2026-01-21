@@ -175,12 +175,14 @@ ContextForgeTS/
 | [Frontend Guide](docs/FRONTEND_GUIDE.md) | Frontend patterns for developers from React Router/Redux |
 | [Data Model](docs/DATA_MODEL.md) | Schema explanation and relationships |
 | [API Reference](docs/API_REFERENCE.md) | All Convex functions with args and returns |
+| [CLI Commands](docs/CLI_COMMANDS.md) | Quick reference for `convex run` commands |
 
 ### Technical Deep-Dives
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/ARCHITECTURE.md) | Technical design, LLM integration patterns |
 | [Structure](docs/STRUCTURE.md) | Detailed file layout |
+| [N+1 Prevention](convex/N_PLUS_ONE.md) | Query optimization patterns for Convex |
 | [Progress](docs/PROGRESS.md) | Development log and decisions |
 | [Roadmap](docs/ROADMAP.md) | Feature slices and status |
 | [Token Budgets Plan](docs/TOKEN_BUDGETS_PLAN.md) | Upcoming token counting feature |

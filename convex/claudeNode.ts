@@ -310,6 +310,7 @@ export const streamGenerateWithContext = action({
   },
   handler: async (ctx, args): Promise<void> => {
     const throttleMs = args.throttleMs ?? 100
+    const startTime = Date.now()
 
     // Get blocks for context assembly
     const blocks = await ctx.runQuery(api.blocks.list, {
@@ -322,6 +323,11 @@ export const streamGenerateWithContext = action({
 
     let buffer = ""
     let lastFlush = Date.now()
+
+    // Usage tracking
+    let inputTokens: number | undefined
+    let outputTokens: number | undefined
+    let costUsd: number | undefined
 
     // Helper to flush buffer to database
     const flushBuffer = async () => {
@@ -383,14 +389,30 @@ export const streamGenerateWithContext = action({
             }
           }
         }
+
+        // Capture usage stats from result message
+        if (msgType === "result") {
+          const msg = message as Record<string, unknown>
+          const usage = msg.usage as Record<string, unknown> | undefined
+          if (usage) {
+            inputTokens = usage.input_tokens as number | undefined
+            outputTokens = usage.output_tokens as number | undefined
+          }
+          costUsd = msg.total_cost_usd as number | undefined
+        }
       }
 
       // Final flush of any remaining buffer
       await flushBuffer()
 
-      // Mark as complete
-      await ctx.runMutation(internal.generations.complete, {
+      // Mark as complete with usage stats
+      const durationMs = Date.now() - startTime
+      await ctx.runMutation(internal.generations.completeWithUsage, {
         generationId: args.generationId,
+        inputTokens,
+        outputTokens,
+        costUsd,
+        durationMs,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)

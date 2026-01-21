@@ -2,7 +2,7 @@
  * Home page - Zone layout with blocks.
  */
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
@@ -12,6 +12,8 @@ import { DroppableZone, SortableBlock, ZONES, type Zone } from "@/components/dnd
 import { useFileDrop } from "@/hooks/useFileDrop"
 import { useSession } from "@/contexts/SessionContext"
 import { GeneratePanel } from "@/components/GeneratePanel"
+import { SessionMetrics, BlockTokenBadge, ZoneHeader } from "@/components/metrics"
+import { cn } from "@/lib/utils"
 
 // Zone display info
 const ZONE_INFO: Record<Zone, { label: string; description: string }> = {
@@ -32,7 +34,12 @@ const ZONE_INFO: Record<Zone, { label: string; description: string }> = {
 // Block type options
 const BLOCK_TYPES = ["NOTE", "CODE", "SYSTEM", "USER", "ASSISTANT"] as const
 
-// Add block form
+// Simple client-side token estimation (4 chars/token)
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
+// Add block form with budget validation
 function AddBlockForm({
   sessionId,
   defaultZone = "WORKING",
@@ -43,11 +50,53 @@ function AddBlockForm({
   const [content, setContent] = useState("")
   const [type, setType] = useState<string>("NOTE")
   const [zone, setZone] = useState<Zone>(defaultZone)
+  const [budgetWarning, setBudgetWarning] = useState<string | null>(null)
   const createBlock = useMutation(api.blocks.create)
+
+  // Get zone metrics for budget checking
+  const metrics = useQuery(api.metrics.getZoneMetrics, { sessionId })
+
+  // Estimate tokens for current content
+  const estimatedTokens = useMemo(() => {
+    if (!content.trim()) return 0
+    return estimateTokens(content.trim())
+  }, [content])
+
+  // Check budget status for selected zone
+  const budgetStatus = useMemo(() => {
+    if (!metrics || !content.trim()) return null
+
+    const zoneData = metrics.zones[zone]
+    if (!zoneData) return null
+
+    const newTotal = zoneData.tokens + estimatedTokens
+    const percentUsed = Math.round((newTotal / zoneData.budget) * 100)
+
+    return {
+      currentTokens: zoneData.tokens,
+      newTotal,
+      budget: zoneData.budget,
+      percentUsed,
+      wouldExceed: newTotal > zoneData.budget,
+      isWarning: percentUsed > 80 && percentUsed <= 95,
+      isDanger: percentUsed > 95,
+    }
+  }, [metrics, zone, estimatedTokens, content])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
+
+    // Check if would exceed budget
+    if (budgetStatus?.wouldExceed) {
+      setBudgetWarning(
+        `This would exceed the ${ZONE_INFO[zone].label} zone budget (${budgetStatus.percentUsed}% of limit). Content not added.`
+      )
+      return
+    }
+
+    // Clear any existing warning
+    setBudgetWarning(null)
 
     await createBlock({ sessionId, content: content.trim(), type, zone })
     setContent("")
@@ -86,7 +135,10 @@ function AddBlockForm({
           <select
             id="block-zone"
             value={zone}
-            onChange={(e) => setZone(e.target.value as Zone)}
+            onChange={(e) => {
+              setZone(e.target.value as Zone)
+              setBudgetWarning(null) // Clear warning on zone change
+            }}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
             {ZONES.map((z) => (
@@ -98,22 +150,64 @@ function AddBlockForm({
         </div>
       </div>
       <div>
-        <label
-          htmlFor="block-content"
-          className="block text-sm font-medium mb-1 text-foreground"
-        >
-          Content
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label
+            htmlFor="block-content"
+            className="block text-sm font-medium text-foreground"
+          >
+            Content
+          </label>
+          {estimatedTokens > 0 && (
+            <span
+              className={cn(
+                "text-xs font-mono",
+                budgetStatus?.isDanger && "text-destructive",
+                budgetStatus?.isWarning && "text-yellow-600 dark:text-yellow-500"
+              )}
+            >
+              ~{estimatedTokens.toLocaleString()} tokens
+              {budgetStatus && ` (${budgetStatus.percentUsed}% after add)`}
+            </span>
+          )}
+        </div>
         <textarea
           id="block-content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value)
+            setBudgetWarning(null) // Clear warning on content change
+          }}
           placeholder="Enter block content..."
           rows={3}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+          className={cn(
+            "w-full rounded-md border bg-background px-3 py-2 text-sm resize-none",
+            budgetStatus?.wouldExceed
+              ? "border-destructive"
+              : budgetStatus?.isWarning
+                ? "border-yellow-500"
+                : "border-input"
+          )}
         />
       </div>
-      <Button type="submit" disabled={!content.trim()}>
+
+      {/* Budget warning */}
+      {budgetStatus?.isWarning && !budgetStatus.wouldExceed && (
+        <div className="p-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 text-xs">
+          Warning: {ZONE_INFO[zone].label} zone will be at {budgetStatus.percentUsed}% capacity after adding this block.
+        </div>
+      )}
+
+      {/* Error warning */}
+      {(budgetWarning || budgetStatus?.wouldExceed) && (
+        <div className="p-2 rounded-md bg-destructive/10 border border-destructive text-destructive text-xs">
+          {budgetWarning || `This would exceed the ${ZONE_INFO[zone].label} zone budget (${budgetStatus?.percentUsed}% of limit).`}
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        disabled={!content.trim() || budgetStatus?.wouldExceed}
+      >
         Add Block
       </Button>
     </form>
@@ -137,12 +231,14 @@ function BlockCard({
   type,
   zone,
   createdAt,
+  tokens,
 }: {
   id: Id<"blocks">
   content: string
   type: string
   zone: Zone
   createdAt: number
+  tokens?: number
 }) {
   const removeBlock = useMutation(api.blocks.remove)
   const moveBlock = useMutation(api.blocks.move)
@@ -170,6 +266,7 @@ function BlockCard({
             {type}
           </span>
           <span className="text-xs text-muted-foreground">{timeAgo}</span>
+          <BlockTokenBadge tokens={tokens} />
         </div>
         <div className="flex gap-1">
           <Link
@@ -214,9 +311,11 @@ function BlockCard({
 function ZoneColumn({
   sessionId,
   zone,
+  zoneMetrics,
 }: {
   sessionId: Id<"sessions">
   zone: Zone
+  zoneMetrics?: { blocks: number; tokens: number; budget: number; percentUsed: number }
 }) {
   const blocks = useQuery(api.blocks.listByZone, { sessionId, zone })
   const info = ZONE_INFO[zone]
@@ -236,11 +335,41 @@ function ZoneColumn({
 
   const blockIds = sortedBlocks.map((b) => b._id)
 
+  // Budget status
+  const isWarning = zoneMetrics && zoneMetrics.percentUsed > 80 && zoneMetrics.percentUsed <= 95
+  const isDanger = zoneMetrics && zoneMetrics.percentUsed > 95
+
   return (
     <div className="flex flex-col h-full relative" {...dropProps}>
       <div className="mb-3">
-        <h3 className="text-lg font-semibold">{info.label}</h3>
-        <p className="text-xs text-muted-foreground">{info.description}</p>
+        {zoneMetrics ? (
+          <>
+            <ZoneHeader
+              zone={info.label}
+              blockCount={zoneMetrics.blocks}
+              tokens={zoneMetrics.tokens}
+              budget={zoneMetrics.budget}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{info.description}</p>
+          </>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold">{info.label}</h3>
+            <p className="text-xs text-muted-foreground">{info.description}</p>
+          </>
+        )}
+
+        {/* Budget warning alerts */}
+        {isDanger && (
+          <div className="mt-2 p-2 rounded-md bg-destructive/10 border border-destructive text-destructive text-xs">
+            Zone at {zoneMetrics?.percentUsed}% capacity - consider archiving content
+          </div>
+        )}
+        {isWarning && (
+          <div className="mt-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 text-xs">
+            Zone approaching limit ({zoneMetrics?.percentUsed}%)
+          </div>
+        )}
       </div>
 
       <DroppableZone zone={zone} itemIds={blockIds}>
@@ -265,6 +394,7 @@ function ZoneColumn({
                   type={block.type}
                   zone={block.zone}
                   createdAt={block.createdAt}
+                  tokens={block.tokens ?? undefined}
                 />
               </SortableBlock>
             ))
@@ -293,6 +423,8 @@ function ZoneColumn({
 
 // Three-zone layout
 function ZoneLayout({ sessionId }: { sessionId: Id<"sessions"> }) {
+  const metrics = useQuery(api.metrics.getZoneMetrics, { sessionId })
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[600px]">
       {ZONES.map((zone) => (
@@ -300,7 +432,11 @@ function ZoneLayout({ sessionId }: { sessionId: Id<"sessions"> }) {
           key={zone}
           className="rounded-lg border border-border bg-card p-4 flex flex-col"
         >
-          <ZoneColumn sessionId={sessionId} zone={zone} />
+          <ZoneColumn
+            sessionId={sessionId}
+            zone={zone}
+            zoneMetrics={metrics?.zones[zone]}
+          />
         </div>
       ))}
     </div>
@@ -342,6 +478,11 @@ function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Session metrics panel */}
+      <section>
+        <SessionMetrics sessionId={sessionId} />
+      </section>
+
       <section className="rounded-lg border border-border bg-card p-6">
         <h2 className="text-xl font-semibold mb-4">Add New Block</h2>
         <AddBlockForm sessionId={sessionId} />

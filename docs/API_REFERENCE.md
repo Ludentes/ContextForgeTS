@@ -9,7 +9,7 @@ Complete reference for all Convex functions in ContextForgeTS.
 | Module | Queries | Mutations | Actions |
 |--------|---------|-----------|---------|
 | [blocks](#blocks) | 3 | 5 | - |
-| [sessions](#sessions) | 2 | 3 | - |
+| [sessions](#sessions) | 2 | 6 | - |
 | [generations](#generations) | 2 | 3 | - |
 | [snapshots](#snapshots) | 2 | 4 | - |
 | [claudeNode](#claudenode) | - | - | 4 |
@@ -31,6 +31,10 @@ List all blocks for a session.
 const blocks = useQuery(api.blocks.list, { sessionId })
 ```
 
+```bash
+npx convex run blocks:list '{"sessionId": "SESSION_ID"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `sessionId` | `Id<"sessions">` | Yes | Session to list blocks from |
@@ -45,6 +49,12 @@ List blocks by session and zone, ordered by position.
 
 ```typescript
 const blocks = useQuery(api.blocks.listByZone, { sessionId, zone: "WORKING" })
+```
+
+```bash
+npx convex run blocks:listByZone '{"sessionId": "SESSION_ID", "zone": "WORKING"}'
+npx convex run blocks:listByZone '{"sessionId": "SESSION_ID", "zone": "STABLE"}'
+npx convex run blocks:listByZone '{"sessionId": "SESSION_ID", "zone": "PERMANENT"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -62,6 +72,10 @@ Get a single block by ID.
 
 ```typescript
 const block = useQuery(api.blocks.get, { id: blockId })
+```
+
+```bash
+npx convex run blocks:get '{"id": "BLOCK_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -87,6 +101,11 @@ const blockId = await createBlock({
 })
 ```
 
+```bash
+npx convex run blocks:create '{"sessionId": "SESSION_ID", "content": "Hello world", "type": "NOTE"}'
+npx convex run blocks:create '{"sessionId": "SESSION_ID", "content": "System prompt", "type": "SYSTEM", "zone": "PERMANENT"}'
+```
+
 | Arg | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
 | `sessionId` | `Id<"sessions">` | Yes | - | Parent session |
@@ -105,6 +124,10 @@ Move a block to a different zone.
 
 ```typescript
 await moveBlock({ id: blockId, zone: "STABLE" })
+```
+
+```bash
+npx convex run blocks:move '{"id": "BLOCK_ID", "zone": "STABLE"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -126,6 +149,10 @@ Change a block's position within its zone.
 await reorderBlock({ id: blockId, newPosition: 1.5 })
 ```
 
+```bash
+npx convex run blocks:reorder '{"id": "BLOCK_ID", "newPosition": 1.5}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `id` | `Id<"blocks">` | Yes | Block to reorder |
@@ -141,6 +168,11 @@ Update a block's content or type.
 
 ```typescript
 await updateBlock({ id: blockId, content: "New content" })
+```
+
+```bash
+npx convex run blocks:update '{"id": "BLOCK_ID", "content": "New content"}'
+npx convex run blocks:update '{"id": "BLOCK_ID", "type": "SYSTEM"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -159,6 +191,10 @@ Delete a block.
 
 ```typescript
 await removeBlock({ id: blockId })
+```
+
+```bash
+npx convex run blocks:remove '{"id": "BLOCK_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -183,6 +219,10 @@ List all sessions.
 const sessions = useQuery(api.sessions.list)
 ```
 
+```bash
+npx convex run sessions:list
+```
+
 **Args:** None
 
 **Returns:** `Session[]` ordered by creation time (newest first)
@@ -195,6 +235,10 @@ Get a single session by ID.
 
 ```typescript
 const session = useQuery(api.sessions.get, { id: sessionId })
+```
+
+```bash
+npx convex run sessions:get '{"id": "SESSION_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -215,6 +259,10 @@ Create a new session.
 const sessionId = await createSession({ name: "My Project" })
 ```
 
+```bash
+npx convex run sessions:create '{"name": "My Project"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `name` | `string` | No | Display name |
@@ -231,6 +279,10 @@ Update a session (e.g., rename).
 await updateSession({ id: sessionId, name: "New Name" })
 ```
 
+```bash
+npx convex run sessions:update '{"id": "SESSION_ID", "name": "New Name"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `id` | `Id<"sessions">` | Yes | Session to update |
@@ -242,10 +294,14 @@ await updateSession({ id: sessionId, name: "New Name" })
 
 #### `sessions.remove`
 
-Delete a session and all its blocks and snapshots.
+Delete a session and all its blocks, snapshots, and generations.
 
 ```typescript
 await removeSession({ id: sessionId })
+```
+
+```bash
+npx convex run sessions:remove '{"id": "SESSION_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -254,7 +310,70 @@ await removeSession({ id: sessionId })
 
 **Returns:** `void`
 
-**Warning:** This cascade deletes all blocks and snapshots in the session.
+**Warning:** This cascade deletes all blocks, snapshots, and generations in the session.
+
+---
+
+#### `sessions.removeAll`
+
+Delete ALL sessions and their data.
+
+```typescript
+const result = await removeAllSessions({})
+// { deletedSessions: 5, deletedBlocks: 42, deletedSnapshots: 3, deletedGenerations: 10 }
+```
+
+```bash
+npx convex run sessions:removeAll
+```
+
+**Args:** None
+
+**Returns:** `{ deletedSessions: number, deletedBlocks: number, deletedSnapshots: number, deletedGenerations: number }`
+
+**Warning:** This is a nuclear option - deletes everything.
+
+---
+
+#### `sessions.removeByName`
+
+Delete all sessions matching an exact name.
+
+```typescript
+const result = await removeByName({ name: "Test Session" })
+// { deletedSessions: 3, deletedBlocks: 15, ... }
+```
+
+```bash
+npx convex run sessions:removeByName '{"name": "Test Session"}'
+```
+
+| Arg | Type | Required | Description |
+|-----|------|----------|-------------|
+| `name` | `string` | Yes | Exact session name to match |
+
+**Returns:** `{ deletedSessions: number, deletedBlocks: number, deletedSnapshots: number, deletedGenerations: number }`
+
+---
+
+#### `sessions.clear`
+
+Delete all blocks from a session but keep the session itself.
+
+```typescript
+const result = await clearSession({ id: sessionId })
+// { deletedBlocks: 12 }
+```
+
+```bash
+npx convex run sessions:clear '{"id": "SESSION_ID"}'
+```
+
+| Arg | Type | Required | Description |
+|-----|------|----------|-------------|
+| `id` | `Id<"sessions">` | Yes | Session to clear |
+
+**Returns:** `{ deletedBlocks: number }`
 
 ---
 
@@ -270,6 +389,10 @@ Get a generation by ID. Subscribe for real-time streaming updates.
 
 ```typescript
 const generation = useQuery(api.generations.get, { generationId })
+```
+
+```bash
+npx convex run generations:get '{"generationId": "GENERATION_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -300,6 +423,10 @@ Get the most recent generation for a session.
 const generation = useQuery(api.generations.getLatest, { sessionId })
 ```
 
+```bash
+npx convex run generations:getLatest '{"sessionId": "SESSION_ID"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `sessionId` | `Id<"sessions">` | Yes | Session ID |
@@ -319,6 +446,10 @@ const generationId = await createGeneration({
   sessionId,
   provider: "claude",
 })
+```
+
+```bash
+npx convex run generations:create '{"sessionId": "SESSION_ID", "provider": "claude"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -345,6 +476,10 @@ const { generationId } = await startClaudeGeneration({
 const generation = useQuery(api.generations.get, { generationId })
 ```
 
+```bash
+npx convex run generations:startClaudeGeneration '{"sessionId": "SESSION_ID", "prompt": "Write a poem"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `sessionId` | `Id<"sessions">` | Yes | Parent session |
@@ -366,6 +501,10 @@ Save completed generation to blocks.
 
 ```typescript
 const blockId = await saveToBlocks({ generationId })
+```
+
+```bash
+npx convex run generations:saveToBlocks '{"generationId": "GENERATION_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -392,6 +531,10 @@ List all snapshots for a session.
 const snapshots = useQuery(api.snapshots.list, { sessionId })
 ```
 
+```bash
+npx convex run snapshots:list '{"sessionId": "SESSION_ID"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `sessionId` | `Id<"sessions">` | Yes | Session ID |
@@ -406,6 +549,10 @@ Get a single snapshot by ID.
 
 ```typescript
 const snapshot = useQuery(api.snapshots.get, { id: snapshotId })
+```
+
+```bash
+npx convex run snapshots:get '{"id": "SNAPSHOT_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -429,6 +576,10 @@ const snapshotId = await createSnapshot({
 })
 ```
 
+```bash
+npx convex run snapshots:create '{"sessionId": "SESSION_ID", "name": "before-experiment"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `sessionId` | `Id<"sessions">` | Yes | Session to snapshot |
@@ -444,6 +595,10 @@ Restore a snapshot (replaces current session blocks).
 
 ```typescript
 await restoreSnapshot({ id: snapshotId })
+```
+
+```bash
+npx convex run snapshots:restore '{"id": "SNAPSHOT_ID"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -464,6 +619,10 @@ Delete a snapshot.
 await removeSnapshot({ id: snapshotId })
 ```
 
+```bash
+npx convex run snapshots:remove '{"id": "SNAPSHOT_ID"}'
+```
+
 | Arg | Type | Required | Description |
 |-----|------|----------|-------------|
 | `id` | `Id<"snapshots">` | Yes | Snapshot to delete |
@@ -478,6 +637,10 @@ Rename a snapshot.
 
 ```typescript
 await renameSnapshot({ id: snapshotId, name: "new-name" })
+```
+
+```bash
+npx convex run snapshots:rename '{"id": "SNAPSHOT_ID", "name": "new-name"}'
 ```
 
 | Arg | Type | Required | Description |
@@ -503,6 +666,10 @@ Check if Claude Code CLI is available.
 const status = await checkHealth({})
 // { ok: true, version: "claude-3-sonnet" }
 // { ok: false, error: "Claude CLI not found" }
+```
+
+```bash
+npx convex run claudeNode:checkHealth
 ```
 
 **Args:** None

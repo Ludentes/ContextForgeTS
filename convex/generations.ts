@@ -10,6 +10,7 @@
 import { mutation, query, internalMutation } from "./_generated/server"
 import { api } from "./_generated/api"
 import { v } from "convex/values"
+import { countTokens, DEFAULT_TOKEN_MODEL } from "./lib/tokenizer"
 
 /**
  * Create a new generation record.
@@ -78,6 +79,43 @@ export const complete = internalMutation({
       status: "complete",
       text: args.finalText ?? generation.text,
       updatedAt: Date.now(),
+    })
+  },
+})
+
+/**
+ * Internal mutation to mark generation as complete with usage stats.
+ * Used by Claude streaming to capture token usage and cost.
+ */
+export const completeWithUsage = internalMutation({
+  args: {
+    generationId: v.id("generations"),
+    finalText: v.optional(v.string()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    costUsd: v.optional(v.number()),
+    durationMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const generation = await ctx.db.get(args.generationId)
+    if (!generation) {
+      throw new Error("Generation not found")
+    }
+
+    const totalTokens =
+      args.inputTokens !== undefined && args.outputTokens !== undefined
+        ? args.inputTokens + args.outputTokens
+        : undefined
+
+    await ctx.db.patch(args.generationId, {
+      status: "complete",
+      text: args.finalText ?? generation.text,
+      updatedAt: Date.now(),
+      inputTokens: args.inputTokens,
+      outputTokens: args.outputTokens,
+      totalTokens,
+      costUsd: args.costUsd,
+      durationMs: args.durationMs,
     })
   },
 })
@@ -211,6 +249,8 @@ export const saveToBlocks = mutation({
 
     // Create block with generated content
     const now = Date.now()
+    const tokens = countTokens(generation.text)
+
     return await ctx.db.insert("blocks", {
       sessionId: generation.sessionId,
       content: generation.text,
@@ -219,6 +259,10 @@ export const saveToBlocks = mutation({
       position: maxPosition + 1,
       createdAt: now,
       updatedAt: now,
+      // Token tracking
+      tokens,
+      originalTokens: tokens,
+      tokenModel: DEFAULT_TOKEN_MODEL,
     })
   },
 })

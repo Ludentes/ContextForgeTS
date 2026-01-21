@@ -48,6 +48,10 @@ export const create = mutation({
       type: block.type,
       zone: block.zone,
       position: block.position,
+      // Include token tracking
+      tokens: block.tokens,
+      originalTokens: block.originalTokens,
+      tokenModel: block.tokenModel,
     }))
 
     return await ctx.db.insert("snapshots", {
@@ -91,6 +95,10 @@ export const restore = mutation({
         position: blockData.position,
         createdAt: now,
         updatedAt: now,
+        // Restore token tracking
+        tokens: blockData.tokens,
+        originalTokens: blockData.originalTokens,
+        tokenModel: blockData.tokenModel,
       })
     }
 
