@@ -19,6 +19,7 @@ import type * as lib_ollama from "../lib/ollama.js";
 import type * as lib_tokenizer from "../lib/tokenizer.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as metrics from "../metrics.js";
+import type * as projects from "../projects.js";
 import type * as sessions from "../sessions.js";
 import type * as snapshots from "../snapshots.js";
 import type * as templates from "../templates.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tokenizer": typeof lib_tokenizer;
   "lib/validators": typeof lib_validators;
   metrics: typeof metrics;
+  projects: typeof projects;
   sessions: typeof sessions;
   snapshots: typeof snapshots;
   templates: typeof templates;

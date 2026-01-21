@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { DndProvider } from "@/components/dnd"
 import { SessionProvider, useSession } from "@/contexts/SessionContext"
 import { SaveTemplateDialog, ApplyTemplateDialog } from "@/components/templates"
+import { AddToProjectDialog } from "@/components/projects"
 
 // Simple theme toggle hook
 function useTheme() {
@@ -35,6 +36,7 @@ function SessionSelector() {
   const sessions = useQuery(api.sessions.list)
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
   const [showApplyTemplate, setShowApplyTemplate] = useState(false)
+  const [showAddToProject, setShowAddToProject] = useState(false)
 
   const handleCreateSession = async () => {
     const name = `Session ${(sessions?.length ?? 0) + 1}`
@@ -89,6 +91,14 @@ function SessionSelector() {
           >
             Apply Template
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAddToProject(true)}
+            title="Add this session to a project"
+          >
+            Add to Project
+          </Button>
 
           <SaveTemplateDialog
             isOpen={showSaveTemplate}
@@ -102,6 +112,15 @@ function SessionSelector() {
           <ApplyTemplateDialog
             isOpen={showApplyTemplate}
             onClose={() => setShowApplyTemplate(false)}
+            sessionId={sessionId}
+            onSuccess={() => {
+              // Could show a toast notification here
+            }}
+          />
+
+          <AddToProjectDialog
+            isOpen={showAddToProject}
+            onClose={() => setShowAddToProject(false)}
             sessionId={sessionId}
             onSuccess={() => {
               // Could show a toast notification here
@@ -139,6 +158,13 @@ function RootLayoutContent() {
                   activeProps={{ className: "text-foreground font-medium" }}
                 >
                   Templates
+                </Link>
+                <Link
+                  to="/projects"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  activeProps={{ className: "text-foreground font-medium" }}
+                >
+                  Projects
                 </Link>
               </nav>
             </div>

@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as BlocksBlockIdRouteImport } from './routes/blocks/$blockId'
 
 const TemplatesRoute = TemplatesRouteImport.update({
@@ -18,10 +20,20 @@ const TemplatesRoute = TemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => ProjectsRoute,
 } as any)
 const BlocksBlockIdRoute = BlocksBlockIdRouteImport.update({
   id: '/blocks/$blockId',
@@ -31,30 +43,53 @@ const BlocksBlockIdRoute = BlocksBlockIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/templates': typeof TemplatesRoute
   '/blocks/$blockId': typeof BlocksBlockIdRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/templates': typeof TemplatesRoute
   '/blocks/$blockId': typeof BlocksBlockIdRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/projects': typeof ProjectsRouteWithChildren
   '/templates': typeof TemplatesRoute
   '/blocks/$blockId': typeof BlocksBlockIdRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/templates' | '/blocks/$blockId'
+  fullPaths:
+    | '/'
+    | '/projects'
+    | '/templates'
+    | '/blocks/$blockId'
+    | '/projects/$projectId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/templates' | '/blocks/$blockId'
-  id: '__root__' | '/' | '/templates' | '/blocks/$blockId'
+  to:
+    | '/'
+    | '/projects'
+    | '/templates'
+    | '/blocks/$blockId'
+    | '/projects/$projectId'
+  id:
+    | '__root__'
+    | '/'
+    | '/projects'
+    | '/templates'
+    | '/blocks/$blockId'
+    | '/projects/$projectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProjectsRoute: typeof ProjectsRouteWithChildren
   TemplatesRoute: typeof TemplatesRoute
   BlocksBlockIdRoute: typeof BlocksBlockIdRoute
 }
@@ -68,12 +103,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId': {
+      id: '/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ProjectsProjectIdRouteImport
+      parentRoute: typeof ProjectsRoute
     }
     '/blocks/$blockId': {
       id: '/blocks/$blockId'
@@ -85,8 +134,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProjectsRouteChildren {
+  ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
+}
+
+const ProjectsRouteChildren: ProjectsRouteChildren = {
+  ProjectsProjectIdRoute: ProjectsProjectIdRoute,
+}
+
+const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
+  ProjectsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProjectsRoute: ProjectsRouteWithChildren,
   TemplatesRoute: TemplatesRoute,
   BlocksBlockIdRoute: BlocksBlockIdRoute,
 }
