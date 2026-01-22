@@ -15,6 +15,7 @@ interface BrainstormDialogProps {
   onClearConversation: () => void
   onSaveMessage: (messageId: string, zone: Zone) => Promise<void>
   onRetryMessage: (messageId: string) => Promise<void>
+  onEditMessage: (messageId: string, newContent: string) => Promise<void>
   error: string | null
   providerHealth?: {
     ollama: { ok: boolean } | null
@@ -22,6 +23,9 @@ interface BrainstormDialogProps {
     openrouter: { ok: boolean } | null
   }
   systemPrompt?: string
+  // Claude Code agent behavior toggle
+  disableAgentBehavior?: boolean
+  onDisableAgentBehaviorChange?: (value: boolean) => void
 }
 
 // Simple markdown rendering for assistant messages
@@ -90,16 +94,20 @@ function MessageBubble({
   onCopy,
   onSave,
   onRetry,
+  onEdit,
   isStreaming,
 }: {
   message: Message
   onCopy: () => void
   onSave: (zone: Zone) => void
   onRetry: () => void
+  onEdit: (newContent: string) => void
   isStreaming: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const [showZoneSelector, setShowZoneSelector] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(message.content)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content)
@@ -111,6 +119,23 @@ function MessageBubble({
   const handleSave = (zone: Zone) => {
     setShowZoneSelector(false)
     onSave(zone)
+  }
+
+  const handleEdit = () => {
+    if (editContent.trim() && editContent !== message.content) {
+      onEdit(editContent.trim())
+    }
+    setIsEditing(false)
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      handleEdit()
+    } else if (e.key === "Escape") {
+      setEditContent(message.content)
+      setIsEditing(false)
+    }
   }
 
   const isUser = message.role === "user"
@@ -128,7 +153,36 @@ function MessageBubble({
         <div className="text-xs font-medium mb-1 opacity-70">
           {isUser ? "You" : "Assistant"}
         </div>
-        {isUser ? (
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              className="w-full min-w-[300px] rounded border border-input bg-background px-2 py-1 text-sm text-foreground resize-none"
+              rows={3}
+              autoFocus
+            />
+            <div className="flex gap-1 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setEditContent(message.content); setIsEditing(false) }}
+                className="h-6 px-2 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleEdit}
+                disabled={!editContent.trim() || editContent === message.content}
+                className="h-6 px-2 text-xs"
+              >
+                Send
+              </Button>
+            </div>
+          </div>
+        ) : isUser ? (
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         ) : (
           <div
@@ -139,45 +193,58 @@ function MessageBubble({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-1 relative">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleCopy}
-          className="h-6 px-2 text-xs"
-        >
-          {copied ? "Copied!" : "Copy"}
-        </Button>
-        <div className="relative">
+      {!isEditing && (
+        <div className="flex gap-1 relative">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowZoneSelector(!showZoneSelector)}
-            className={cn(
-              "h-6 px-2 text-xs",
-              message.savedAsBlockId && "text-green-600"
-            )}
+            onClick={handleCopy}
+            className="h-6 px-2 text-xs"
           >
-            {message.savedAsBlockId ? "Saved" : "Save"}
+            {copied ? "Copied!" : "Copy"}
           </Button>
-          {showZoneSelector && (
-            <ZoneSelector
-              onSelect={handleSave}
-              onCancel={() => setShowZoneSelector(false)}
-            />
+          {isUser && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              disabled={isStreaming}
+              className="h-6 px-2 text-xs"
+            >
+              Edit
+            </Button>
           )}
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowZoneSelector(!showZoneSelector)}
+              className={cn(
+                "h-6 px-2 text-xs",
+                message.savedAsBlockId && "text-green-600"
+              )}
+            >
+              {message.savedAsBlockId ? "Saved" : "Save"}
+            </Button>
+            {showZoneSelector && (
+              <ZoneSelector
+                onSelect={handleSave}
+                onCancel={() => setShowZoneSelector(false)}
+              />
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRetry}
+            disabled={isStreaming}
+            className="h-6 px-2 text-xs"
+            title={isUser ? "Resend this message" : "Regenerate response"}
+          >
+            Retry
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRetry}
-          disabled={isStreaming}
-          className="h-6 px-2 text-xs"
-          title={isUser ? "Resend this message" : "Regenerate response"}
-        >
-          Retry
-        </Button>
-      </div>
+      )}
     </div>
   )
 }
@@ -218,18 +285,35 @@ export function BrainstormDialog({
   onClearConversation,
   onSaveMessage,
   onRetryMessage,
+  onEditMessage,
   error,
   providerHealth,
   systemPrompt,
+  disableAgentBehavior = true,
+  onDisableAgentBehaviorChange,
 }: BrainstormDialogProps) {
   const [inputValue, setInputValue] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [autoScroll, setAutoScroll] = useState(true)
 
-  // Auto-scroll to bottom when messages change
+  // Check if user is near bottom of scroll
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const { scrollTop, scrollHeight, clientHeight } = container
+    // Consider "near bottom" if within 100px of bottom
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 100
+    setAutoScroll(nearBottom)
+  }, [])
+
+  // Auto-scroll only if user is near bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, streamingText])
+    if (autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages, streamingText, autoScroll])
 
   // Focus input when dialog opens
   useEffect(() => {
@@ -300,6 +384,22 @@ export function BrainstormDialog({
                 OpenRouter {providerHealth?.openrouter?.ok ? "" : "(offline)"}
               </option>
             </select>
+            {/* Claude: disable agent behavior toggle */}
+            {provider === "claude" && onDisableAgentBehaviorChange && (
+              <label
+                className="inline-flex items-center gap-1.5 text-xs cursor-pointer"
+                title="When enabled, appends instructions to prevent Claude from pretending to have tool access"
+              >
+                <input
+                  type="checkbox"
+                  checked={disableAgentBehavior}
+                  onChange={(e) => onDisableAgentBehaviorChange(e.target.checked)}
+                  disabled={!canChangeProvider || isStreaming}
+                  className="rounded border-input"
+                />
+                <span className="text-muted-foreground">No tools</span>
+              </label>
+            )}
             {/* System prompt indicator */}
             {systemPrompt && (
               <span
@@ -326,7 +426,11 @@ export function BrainstormDialog({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
           {messages.length === 0 && !isStreaming && (
             <div className="text-center text-muted-foreground py-8">
               <p className="text-lg mb-2">Start a conversation</p>
@@ -345,6 +449,7 @@ export function BrainstormDialog({
               onCopy={() => {}}
               onSave={(zone) => onSaveMessage(message.id, zone)}
               onRetry={() => onRetryMessage(message.id)}
+              onEdit={(newContent) => onEditMessage(message.id, newContent)}
               isStreaming={isStreaming}
             />
           ))}

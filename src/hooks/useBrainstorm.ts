@@ -17,6 +17,8 @@ export interface Message {
 interface UseBrainstormOptions {
   sessionId: Id<"sessions">
   onError?: (error: string) => void
+  /** Default value for disableAgentBehavior toggle (defaults to true) */
+  defaultDisableAgentBehavior?: boolean
 }
 
 interface UseBrainstormResult {
@@ -32,6 +34,7 @@ interface UseBrainstormResult {
   clearConversation: () => void
   setProvider: (provider: Provider) => void
   retryMessage: (messageId: string) => Promise<void>
+  editMessage: (messageId: string, newContent: string) => Promise<void>
 
   // Streaming state
   isStreaming: boolean
@@ -39,6 +42,10 @@ interface UseBrainstormResult {
 
   // Save to blocks
   saveMessage: (messageId: string, zone: Zone) => Promise<Id<"blocks">>
+
+  // Claude Code agent behavior toggle
+  disableAgentBehavior: boolean
+  setDisableAgentBehavior: (value: boolean) => void
 
   // State
   error: string | null
@@ -75,11 +82,12 @@ function getOpenRouterBrainstormApiUrl(): string {
  * - Ollama: Uses HTTP/SSE streaming via /api/brainstorm endpoint
  */
 export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResult {
-  const { sessionId, onError } = options
+  const { sessionId, onError, defaultDisableAgentBehavior = true } = options
 
   // Dialog state
   const [isOpen, setIsOpen] = useState(false)
   const [provider, setProvider] = useState<Provider>("claude")
+  const [disableAgentBehavior, setDisableAgentBehavior] = useState(defaultDisableAgentBehavior)
 
   // Conversation state (ephemeral - lost on close/refresh)
   const [messages, setMessages] = useState<Message[]>([])
@@ -391,10 +399,11 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
         sessionId,
         conversationHistory,
         newMessage: content,
+        disableAgentBehavior,
       })
       setGenerationId(result.generationId)
     },
-    [sessionId, messages, startBrainstormGeneration]
+    [sessionId, messages, startBrainstormGeneration, disableAgentBehavior]
   )
 
   // Send a new message (dispatches to correct provider)
@@ -532,6 +541,57 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
     [messages, isStreaming, provider, sendMessageOllama, sendMessageOpenRouter, sendMessageClaude, onError]
   )
 
+  // Edit a message and resend (for user messages)
+  const editMessage = useCallback(
+    async (messageId: string, newContent: string) => {
+      if (isStreaming || !newContent.trim()) return
+
+      const messageIndex = messages.findIndex((m) => m.id === messageId)
+      if (messageIndex === -1) return
+
+      const message = messages[messageIndex]
+      if (message.role !== "user") return // Can only edit user messages
+
+      // Update the message content and remove all subsequent messages
+      setMessages((prev) => {
+        const updated = prev.slice(0, messageIndex)
+        updated.push({
+          ...message,
+          content: newContent.trim(),
+          timestamp: Date.now(),
+        })
+        return updated
+      })
+
+      // Reset error state
+      setError(null)
+
+      // Start streaming
+      setIsStreaming(true)
+      setStreamingText("")
+      prevTextRef.current = ""
+
+      try {
+        if (provider === "ollama") {
+          await sendMessageOllama(newContent.trim())
+        } else if (provider === "openrouter") {
+          await sendMessageOpenRouter(newContent.trim())
+        } else {
+          await sendMessageClaude(newContent.trim())
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error"
+        setError(errorMsg)
+        onError?.(errorMsg)
+      } finally {
+        if (provider === "ollama" || provider === "openrouter") {
+          setIsStreaming(false)
+        }
+      }
+    },
+    [messages, isStreaming, provider, sendMessageOllama, sendMessageOpenRouter, sendMessageClaude, onError]
+  )
+
   return {
     // State
     messages,
@@ -545,6 +605,7 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
     clearConversation,
     setProvider,
     retryMessage,
+    editMessage,
 
     // Streaming
     isStreaming,
@@ -552,6 +613,10 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
 
     // Save
     saveMessage,
+
+    // Claude Code agent behavior toggle
+    disableAgentBehavior,
+    setDisableAgentBehavior,
 
     // Error
     error,

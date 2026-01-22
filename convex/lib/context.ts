@@ -3,6 +3,14 @@ import type { Zone } from "./validators"
 
 export type { Zone }
 
+/**
+ * Anti-agent suffix to append to system prompts when using Claude Code provider.
+ * Prevents the model from pretending to have tool access.
+ */
+export const NO_TOOLS_SUFFIX = `
+
+IMPORTANT: In this conversation you do NOT have access to tools, files, or code execution. Do NOT say "let me read that file" or "I'll search for that" - work only with information provided in this conversation.`
+
 export interface ContextMessage {
   role: "system" | "user" | "assistant"
   content: string

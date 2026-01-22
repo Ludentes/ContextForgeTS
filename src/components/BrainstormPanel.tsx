@@ -168,9 +168,12 @@ export function BrainstormPanel({ sessionId, compact = false }: BrainstormPanelP
           onClearConversation={brainstorm.clearConversation}
           onSaveMessage={handleSaveMessage}
           onRetryMessage={(messageId) => brainstorm.retryMessage(messageId)}
+          onEditMessage={(messageId, newContent) => brainstorm.editMessage(messageId, newContent)}
           error={brainstorm.error}
           providerHealth={health}
           systemPrompt={activeSystemPrompt}
+          disableAgentBehavior={brainstorm.disableAgentBehavior}
+          onDisableAgentBehaviorChange={brainstorm.setDisableAgentBehavior}
         />
       </>
     )
@@ -298,9 +301,12 @@ export function BrainstormPanel({ sessionId, compact = false }: BrainstormPanelP
         onClearConversation={brainstorm.clearConversation}
         onSaveMessage={handleSaveMessage}
         onRetryMessage={(messageId) => brainstorm.retryMessage(messageId)}
+        onEditMessage={(messageId, newContent) => brainstorm.editMessage(messageId, newContent)}
         error={brainstorm.error}
         providerHealth={health}
         systemPrompt={activeSystemPrompt}
+        disableAgentBehavior={brainstorm.disableAgentBehavior}
+        onDisableAgentBehaviorChange={brainstorm.setDisableAgentBehavior}
       />
     </div>
   )

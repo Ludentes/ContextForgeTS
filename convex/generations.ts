@@ -234,6 +234,7 @@ export const startBrainstormGeneration = mutation({
       })
     ),
     newMessage: v.string(),
+    disableAgentBehavior: v.optional(v.boolean()), // Append anti-agent suffix to system prompt
   },
   handler: async (ctx, args) => {
     // Create generation record
@@ -254,6 +255,7 @@ export const startBrainstormGeneration = mutation({
       sessionId: args.sessionId,
       conversationHistory: args.conversationHistory,
       newMessage: args.newMessage,
+      disableAgentBehavior: args.disableAgentBehavior ?? true, // Default to true
     })
 
     return { generationId }

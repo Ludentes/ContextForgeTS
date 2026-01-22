@@ -21,6 +21,7 @@ import {
   assembleContext,
   assembleContextWithConversation,
   extractSystemPromptFromBlocks,
+  NO_TOOLS_SUFFIX,
 } from "./lib/context"
 import { createGeneration, flushLangfuse } from "./lib/langfuse"
 
@@ -490,10 +491,12 @@ export const streamBrainstormMessage = action({
     ),
     newMessage: v.string(),
     throttleMs: v.optional(v.number()),
+    disableAgentBehavior: v.optional(v.boolean()), // Append anti-agent suffix
   },
   handler: async (ctx, args): Promise<void> => {
     const throttleMs = args.throttleMs ?? 100
     const startTime = Date.now()
+    const disableAgentBehavior = args.disableAgentBehavior ?? true
 
     // Get blocks for context assembly
     const blocks = await ctx.runQuery(api.blocks.list, {
@@ -501,7 +504,12 @@ export const streamBrainstormMessage = action({
     })
 
     // Extract system prompt from blocks to pass to provider
-    const systemPrompt = extractSystemPromptFromBlocks(blocks)
+    let systemPrompt = extractSystemPromptFromBlocks(blocks)
+
+    // Append anti-agent suffix if enabled
+    if (disableAgentBehavior) {
+      systemPrompt = (systemPrompt ?? "") + NO_TOOLS_SUFFIX
+    }
 
     // Assemble context with conversation history (excludes system_prompt blocks)
     const messages = assembleContextWithConversation(
