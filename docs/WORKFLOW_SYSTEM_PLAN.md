@@ -264,28 +264,32 @@ Phase 4.x  (Polish - can be done incrementally)
 - [x] 1.2 Save Session as Template
 - [x] 1.3 Apply Template
 - [x] 1.4 Template Library Page
-- [x] 1.5 System Prompt Integration
+- [x] 1.5 System Prompt Integration (now uses system_prompt blocks)
 
 ### Phase 2: Projects ✅ COMPLETE
 - [x] 2.1 Database Schema (added in Phase 1)
-- [x] 2.2 Project Management
-- [x] 2.3 Project Dashboard
+- [x] 2.2 Project Management (CRUD operations)
+- [x] 2.3 Project Dashboard (`/projects/$projectId`)
 - [x] 2.4 Session-Project Linking
 
 ### Phase 3: Workflows ✅ COMPLETE
 - [x] 3.1 Database Schema (added in Phase 1)
-- [x] 3.2 Workflow Definition
-- [x] 3.3 Workflow Library
-- [x] 3.4 Start Workflow
-- [x] 3.5 Workflow Progression
-- [x] 3.6 Context Carry-Forward
+- [x] 3.2 Workflow Definition (add/edit/remove/reorder steps)
+- [x] 3.3 Workflow Library (`/workflows`)
+- [x] 3.4 Start Workflow (creates project with first session)
+- [x] 3.5 Workflow Progression (advance step, copy blocks)
+- [x] 3.6 Context Carry-Forward (zone-based block copying)
 
-### Phase 4: Polish
-- [ ] 4.1 Navigation & Layout
-- [ ] 4.2 Workflow Progress UI
-- [ ] 4.3 Template Management
-- [ ] 4.4 Project Management
-- [ ] 4.5 Onboarding
+### Phase 4: Polish (Partially Complete)
+- [x] 4.1 Navigation & Layout (nav links in header)
+- [x] 4.2 Workflow Progress UI (step indicator in project dashboard)
+- [ ] 4.3 Template Management (categories, search, stats)
+- [ ] 4.4 Project Management (status, search, export)
+- [ ] 4.5 Onboarding (pre-built workflows, tutorial)
+
+### Bug Fixes Applied
+- [x] Fixed TanStack Router nested routes (added `<Outlet />` to layout routes)
+- [x] System prompt now uses blocks instead of session field
 
 ---
 
