@@ -1,8 +1,28 @@
 {
-  "name": "contextforgets",
-  "private": true,
-  "version": "0.0.0",
+  "name": "contextforge",
+  "version": "0.1.0",
+  "description": "Context window management for LLM interactions with three-zone architecture, multi-provider support, and workflow automation",
   "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "llm",
+    "context-management",
+    "ai",
+    "claude",
+    "ollama",
+    "openrouter",
+    "convex",
+    "react",
+    "workflow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/contextforge.git"
+  },
+  "homepage": "https://github.com/OWNER/contextforge#readme",
+  "bugs": {
+    "url": "https://github.com/OWNER/contextforge/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

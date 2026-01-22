@@ -1,23 +1,32 @@
-# ContextForge TypeScript
+# ContextForge
 
-A context window management application for LLM interactions. TypeScript rewrite of the original Python-based ContextForge.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
+[![Convex](https://img.shields.io/badge/Convex-Backend-ff6b6b.svg)](https://convex.dev/)
+
+A context window management application for LLM interactions. Organize your prompts, reference materials, and generated content with a **three-zone architecture** designed for optimal context caching.
 
 ## What is ContextForge?
 
-ContextForge helps manage the context window when working with Large Language Models. It organizes content into a **three-zone architecture**:
+ContextForge helps you manage the context window when working with Large Language Models. Instead of manually copying and pasting content, organize it into zones that optimize for LLM caching and token efficiency.
 
 | Zone | Purpose | Behavior |
 |------|---------|----------|
-| **PERMANENT** | System prompts, core instructions | Always included first, never evicted |
-| **STABLE** | Reference material, task context | Cached per session, rarely changes |
-| **WORKING** | Recent work, generated content | Frequently updated, first to evict |
+| **PERMANENT** | System prompts, personas, guidelines | Always included first, best cache hits |
+| **STABLE** | Reference material, templates, frameworks | Cached per session, rarely changes |
+| **WORKING** | Recent work, generated content, notes | Frequently updated, first to evict |
 
-**Key Features:**
-- Visual zone management with drag-and-drop
-- Multi-turn brainstorming with LLMs
-- Real-time streaming from multiple providers
-- Session isolation with snapshots
-- Auto-save generated content to context
+### Key Features
+
+- **Visual Zone Management** - Drag-and-drop blocks between zones
+- **Multi-Turn Brainstorming** - Have conversations with LLMs using your context
+- **Three LLM Providers** - Ollama (local), Claude Code, and OpenRouter
+- **Real-Time Streaming** - See responses as they generate
+- **Workflows & Templates** - Create reusable document pipelines
+- **Projects** - Organize related sessions together
+- **Session Snapshots** - Save and restore context states
+- **LLM Observability** - LangFuse integration for tracing
 
 ## Current Status
 
@@ -25,12 +34,113 @@ ContextForge helps manage the context window when working with Large Language Mo
 |---------|--------|
 | Zone-based block management | ✅ Complete |
 | Drag-and-drop reordering | ✅ Complete |
-| Block editor | ✅ Complete |
+| Block editor with 12 types | ✅ Complete |
 | Sessions & snapshots | ✅ Complete |
+| Multi-turn brainstorming | ✅ Complete |
 | LLM streaming (Ollama) | ✅ Complete |
 | LLM streaming (Claude Code) | ✅ Complete |
+| LLM streaming (OpenRouter) | ✅ Complete |
+| Templates & workflows | ✅ Complete |
+| Projects & organization | ✅ Complete |
+| LangFuse observability | ✅ Complete |
 | Token counting & budgets | 🔜 Planned |
-| Brainstorming chat interface | 🔜 Planned |
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm (`npm install -g pnpm`)
+- At least one LLM provider (see below)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/OWNER/contextforge.git
+cd contextforge
+
+# Install dependencies
+pnpm install
+
+# Copy environment file
+cp .env.example .env.local
+
+# Start Convex backend (terminal 1)
+pnpm exec convex dev
+
+# Start frontend (terminal 2)
+pnpm dev
+```
+
+Visit `http://localhost:5173`
+
+## LLM Providers
+
+ContextForge supports three LLM providers. You need at least one configured.
+
+### Ollama (Recommended for Development)
+
+Free, local, private. Great for development and testing.
+
+```bash
+# Install from https://ollama.ai/download
+# Pull a model
+ollama pull llama3.2
+
+# Ollama runs at http://localhost:11434 by default
+```
+
+### OpenRouter (Recommended for Production)
+
+Access Claude, GPT-4, Llama, and 100+ models through one API.
+
+```bash
+# Get API key from https://openrouter.ai/keys
+# Add to .env.local:
+OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+Then set via Convex:
+```bash
+pnpm exec convex env set OPENROUTER_API_KEY sk-or-v1-...
+```
+
+### Claude Code
+
+Uses the Claude Code CLI (requires Claude subscription).
+
+```bash
+# Install Claude Code CLI from https://claude.ai/code
+# Find path: which claude
+# Add to .env.local:
+CLAUDE_CODE_PATH=/path/to/claude
+```
+
+Then set via Convex:
+```bash
+pnpm exec convex env set CLAUDE_CODE_PATH /path/to/claude
+```
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and configure:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_CONVEX_URL` | Auto | Convex deployment URL (auto-generated) |
+| **Ollama** | | |
+| `OLLAMA_URL` | No | Server URL (default: `http://localhost:11434`) |
+| `OLLAMA_MODEL` | No | Default model (default: `llama3.2`) |
+| **OpenRouter** | | |
+| `OPENROUTER_API_KEY` | For OpenRouter | API key from openrouter.ai |
+| `OPENROUTER_MODEL` | No | Default model (default: `anthropic/claude-3.5-sonnet`) |
+| **Claude Code** | | |
+| `CLAUDE_CODE_PATH` | For Claude | Path to Claude Code CLI |
+| **LangFuse** | | |
+| `LANGFUSE_SECRET_KEY` | No | LangFuse secret key for tracing |
+| `LANGFUSE_PUBLIC_KEY` | No | LangFuse public key |
+| `LANGFUSE_BASE_URL` | No | LangFuse server URL |
 
 ## Tech Stack
 
@@ -43,86 +153,36 @@ ContextForge helps manage the context window when working with Large Language Mo
 | Drag-and-Drop | @dnd-kit | Accessible drag-and-drop |
 | Testing | Vitest + Playwright | Unit + E2E tests |
 
-### LLM Providers
+## Project Structure
 
-| Provider | Type | Use Case |
-|----------|------|----------|
-| [Ollama](https://ollama.ai) | Local | Free, private, development |
-| [Claude Code](https://claude.ai/code) | Subscription | Production, advanced reasoning |
-
-> **Note:** We use **Claude Code** (the CLI tool via Claude Agent SDK), not the Anthropic API. See [Architecture](docs/ARCHITECTURE.md) for details on why.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm (`npm install -g pnpm`)
-- For Ollama: [Install Ollama](https://ollama.ai/download) and pull a model
-- For Claude Code: [Install Claude Code CLI](https://claude.ai/code)
-
-### Installation
-
-```bash
-# Clone and install
-cd ContextForgeTS
-pnpm install
-
-# Start Convex backend (terminal 1)
-pnpm exec convex dev
-
-# Start frontend (terminal 2)
-pnpm dev
 ```
-
-Visit `http://localhost:5173`
-
-### LLM Provider Setup
-
-#### Ollama (Recommended for Development)
-
-```bash
-# Install Ollama from https://ollama.ai/download
-
-# Pull a model
-ollama pull llama3.2
-
-# Start Ollama server (usually auto-starts)
-ollama serve
+contextforge/
+├── convex/                 # Backend (Convex)
+│   ├── schema.ts           # Database schema
+│   ├── blocks.ts           # Block CRUD operations
+│   ├── sessions.ts         # Session management
+│   ├── templates.ts        # Template management
+│   ├── workflows.ts        # Workflow management
+│   ├── projects.ts         # Project management
+│   ├── generations.ts      # LLM generation tracking
+│   ├── claudeNode.ts       # Claude Code integration
+│   ├── http.ts             # HTTP endpoints (Ollama, OpenRouter)
+│   └── lib/
+│       ├── context.ts      # Context assembly
+│       ├── ollama.ts       # Ollama client
+│       ├── openrouter.ts   # OpenRouter client
+│       └── langfuse.ts     # LangFuse integration
+│
+├── src/
+│   ├── routes/             # Pages (TanStack Router)
+│   ├── components/         # React components
+│   ├── hooks/              # Custom hooks
+│   ├── contexts/           # React contexts
+│   └── lib/                # Utilities
+│
+├── docs/                   # Documentation
+└── e2e/                    # Playwright tests
 ```
-
-Ollama runs at `http://localhost:11434` by default.
-
-#### Claude Code
-
-```bash
-# Install Claude Code CLI
-# See: https://claude.ai/code
-
-# Find your Claude Code path
-which claude
-# Example: /home/user/.local/bin/claude
-
-# Add to .env.local
-echo 'CLAUDE_CODE_PATH=/path/to/claude' >> .env.local
-```
-
-Requires an active Claude subscription.
-
-### Environment Variables
-
-Copy `.env.example` to `.env.local`:
-
-```bash
-cp .env.example .env.local
-```
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_CONVEX_URL` | Auto | Convex deployment URL (auto-generated) |
-| `CLAUDE_CODE_PATH` | For Claude | Path to Claude Code CLI executable |
-| `OLLAMA_URL` | No | Ollama server URL (default: `http://localhost:11434`) |
-| `OLLAMA_MODEL` | No | Default Ollama model (default: `llama3.2`) |
 
 ## Development
 
@@ -136,89 +196,65 @@ pnpm format
 # Run E2E tests (requires app + Convex running)
 pnpm test:e2e
 
-# View Convex dashboard
-# URL shown when running `convex dev`
+# Type check
+pnpm exec tsc --noEmit
 ```
-
-### Project Structure
-
-```
-ContextForgeTS/
-├── convex/                 # Backend (Convex)
-│   ├── schema.ts           # Database schema
-│   ├── blocks.ts           # Block CRUD operations
-│   ├── sessions.ts         # Session management
-│   ├── generations.ts      # LLM generation tracking
-│   ├── claudeNode.ts       # Claude Code integration
-│   ├── http.ts             # HTTP endpoints
-│   └── lib/
-│       ├── context.ts      # Context assembly
-│       └── ollama.ts       # Ollama client
-│
-├── src/
-│   ├── routes/             # Pages (TanStack Router)
-│   ├── components/         # React components
-│   ├── hooks/              # Custom hooks
-│   ├── contexts/           # React contexts
-│   └── lib/                # Utilities
-│
-├── e2e/                    # Playwright tests
-└── docs/                   # Documentation
-```
-
-## Documentation
-
-### Getting Started
-| Document | Description |
-|----------|-------------|
-| [Convex Guide](docs/CONVEX_GUIDE.md) | Backend patterns for developers from Express/FastAPI |
-| [Frontend Guide](docs/FRONTEND_GUIDE.md) | Frontend patterns for developers from React Router/Redux |
-| [Data Model](docs/DATA_MODEL.md) | Schema explanation and relationships |
-| [API Reference](docs/API_REFERENCE.md) | All Convex functions with args and returns |
-| [CLI Commands](docs/CLI_COMMANDS.md) | Quick reference for `convex run` commands |
-
-### Technical Deep-Dives
-| Document | Description |
-|----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | Technical design, LLM integration patterns |
-| [Structure](docs/STRUCTURE.md) | Detailed file layout |
-| [N+1 Prevention](convex/N_PLUS_ONE.md) | Query optimization patterns for Convex |
-| [Progress](docs/PROGRESS.md) | Development log and decisions |
-| [Roadmap](docs/ROADMAP.md) | Feature slices and status |
-| [Token Budgets Plan](docs/TOKEN_BUDGETS_PLAN.md) | Upcoming token counting feature |
 
 ## Key Concepts
 
-### Zones
+### Context Assembly
 
-Content is organized into three zones with different caching behaviors:
+Content is assembled in a specific order to optimize LLM caching:
 
 ```
-Context Assembly Order:
-┌─────────────┐
-│  PERMANENT  │ ← System prompts (always first, best cache hits)
-├─────────────┤
-│   STABLE    │ ← Reference material (rarely changes)
-├─────────────┤
-│   WORKING   │ ← Recent work (frequently updated)
-├─────────────┤
-│   Prompt    │ ← User's current request
-└─────────────┘
+┌─────────────────┐
+│  System Prompt  │ ← Extracted from system_prompt blocks
+├─────────────────┤
+│   PERMANENT     │ ← Guidelines, personas (best cache hits)
+├─────────────────┤
+│    STABLE       │ ← Reference material, templates
+├─────────────────┤
+│    WORKING      │ ← Recent work, notes, documents
+├─────────────────┤
+│   User Prompt   │ ← Current request
+└─────────────────┘
 ```
 
-### Sessions
+### Block Types
 
-Sessions provide isolated workspaces. Each session has its own blocks and can be saved/restored via snapshots.
+ContextForge uses 12 semantic block types:
 
-### LLM Streaming
+| Category | Types |
+|----------|-------|
+| Core | `system_prompt`, `note`, `code` |
+| Document | `guideline`, `template`, `reference`, `document` |
+| Conversation | `user_message`, `assistant_message`, `instruction` |
+| Meta | `persona`, `framework` |
 
-Two different patterns based on provider capabilities:
+### Workflows
 
-- **Ollama:** HTTP streaming via Server-Sent Events
-- **Claude Code:** Convex reactive queries (database-backed streaming)
+Create multi-step document creation pipelines:
 
-See [Architecture](docs/ARCHITECTURE.md) for details.
+1. Define templates for each step
+2. Configure which zones carry forward
+3. Start a project from the workflow
+4. Progress through steps, building on previous outputs
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | Technical design and LLM integration patterns |
+| [Data Model](docs/DATA_MODEL.md) | Schema and relationships |
+| [API Reference](docs/API_REFERENCE.md) | All Convex functions |
+| [Convex Guide](docs/CONVEX_GUIDE.md) | Backend patterns for new contributors |
+| [Frontend Guide](docs/FRONTEND_GUIDE.md) | Frontend patterns and components |
+| [Workflow System](docs/WORKFLOW_SYSTEM_PLAN.md) | Workflow feature documentation |
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT
+[MIT](LICENSE) - see LICENSE file for details.
