@@ -5,8 +5,8 @@
 > This was the original step-by-step implementation plan for LLM integration. **This work has been completed.**
 >
 > **For current implementation details, see:**
-> - [ARCHITECTURE.md](./ARCHITECTURE.md#llm-integration) - How it actually works
-> - [PROGRESS.md](./PROGRESS.md) - Session 8: Slice 5 - LLM Integration
+> - [ARCHITECTURE.md](../ARCHITECTURE.md#llm-integration) - How it actually works
+> - [PROGRESS.md](../PROGRESS.md) - Session 8: Slice 5 - LLM Integration
 >
 > **What changed during implementation:**
 > - Claude Code uses Convex reactive queries (database-backed streaming), not HTTP

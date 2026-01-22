@@ -1,5 +1,10 @@
 # Design by Contract (DbC) for Convex
 
+> **📦 ARCHIVED - Not Implemented**
+>
+> This proposal for Design by Contract patterns was not implemented.
+> Kept for reference if the feature is reconsidered in the future.
+
 Proposal for porting the Python context_manager DbC patterns to ContextForgeTS.
 
 ---

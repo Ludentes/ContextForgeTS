@@ -5,8 +5,8 @@
 > This document was written during the early research phase. The LLM integration has since been implemented with different patterns than originally planned.
 >
 > **For current implementation details, see:**
-> - [ARCHITECTURE.md](./ARCHITECTURE.md#llm-integration) - How LLM streaming works
-> - [ROADMAP.md](./ROADMAP.md) - Current feature status
+> - [ARCHITECTURE.md](../ARCHITECTURE.md#llm-integration) - How LLM streaming works
+> - [ROADMAP.md](../ROADMAP.md) - Current feature status
 >
 > **Key differences from this plan:**
 > - We use Claude Code (subprocess protocol), not Anthropic API

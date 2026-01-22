@@ -212,7 +212,60 @@ snapshots: defineTable({
 
 ---
 
-## Slice 5.5: Token Counting & Zone Budgets
+## Slice 5.5: Brainstorming & Advanced Generation
+
+**Goal:** Multi-turn conversations with context, multiple providers, observability.
+
+**Status:** ✅ Complete
+
+### Features
+- [x] Multi-turn brainstorming with conversation history
+- [x] OpenRouter provider (100+ models via API)
+- [x] LangFuse integration for LLM observability
+- [x] System prompt blocks (extracted from PERMANENT zone)
+- [x] Save brainstorm messages to blocks
+
+### LLM Providers
+- Ollama (local) - `/api/brainstorm` endpoint
+- Claude Code (subscription) - Convex reactive streaming
+- OpenRouter (API) - `/api/openrouter/brainstorm` endpoint
+
+### Files
+- `convex/lib/openrouter.ts` - OpenRouter API client
+- `convex/lib/langfuse.ts` - LangFuse tracing integration
+- `src/hooks/useBrainstorm.ts` - Unified brainstorm hook
+- `src/components/BrainstormPanel.tsx` - Brainstorm UI
+- `src/components/BrainstormDialog.tsx` - Conversation dialog
+
+---
+
+## Slice 5.6: Workflows, Templates & Projects
+
+**Goal:** Reusable session configurations and multi-step document pipelines.
+
+**Status:** ✅ Complete
+
+**Details:** See [completed/WORKFLOW_SYSTEM_PLAN.md](./completed/WORKFLOW_SYSTEM_PLAN.md)
+
+### Features
+- [x] Templates - Save/apply session configurations
+- [x] Projects - Organize related sessions
+- [x] Workflows - Multi-step document creation pipelines
+- [x] Context carry-forward between workflow steps
+- [x] Block type rationalization (12 semantic types)
+
+### Files
+- `convex/templates.ts` - Template CRUD
+- `convex/projects.ts` - Project management
+- `convex/workflows.ts` - Workflow management
+- `src/routes/templates.tsx` - Template library
+- `src/routes/projects.*.tsx` - Project pages
+- `src/routes/workflows.*.tsx` - Workflow pages
+- `src/lib/blockTypes.ts` - Block type definitions
+
+---
+
+## Slice 5.7: Token Counting & Zone Budgets
 
 **Goal:** Add accurate token counting, zone budgets, and usage tracking.
 
@@ -282,7 +335,9 @@ generations: defineTable({
 | 4. Block Editor | ✅ Done | TanStack Router + edit page |
 | 4.5. Sessions | ✅ Done | Session isolation + snapshots |
 | 5. LLM Integration | ✅ Done | Ollama + Claude Code streaming |
-| 5.5. Token Budgets | 🔜 Next | See [TOKEN_BUDGETS_PLAN.md](./TOKEN_BUDGETS_PLAN.md) |
+| 5.5. Brainstorming | ✅ Done | Multi-turn, OpenRouter, LangFuse |
+| 5.6. Workflows | ✅ Done | Templates, projects, workflows |
+| 5.7. Token Budgets | 🔜 Next | See [TOKEN_BUDGETS_PLAN.md](./TOKEN_BUDGETS_PLAN.md) |
 | 6. Polish | Planned | - |
 
 ---
@@ -301,13 +356,19 @@ Slice 3: DnD    Slice 4: Editor
         │                │
         └───────┬────────┘
                 ▼
-     Slice 4.5: Sessions
+     Slice 4.5: Sessions ✅
                 │
                 ▼
     Slice 5: LLM Integration ✅
                 │
+        ┌───────┴───────┐
+        ▼               ▼
+ Slice 5.5:       Slice 5.6:
+ Brainstorming ✅  Workflows ✅
+        │               │
+        └───────┬───────┘
                 ▼
-   Slice 5.5: Token Budgets 🔜
+   Slice 5.7: Token Budgets 🔜
                 │
                 ▼
        Slice 6: Polish

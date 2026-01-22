@@ -242,6 +242,10 @@ Create multi-step document creation pipelines:
 
 ## Documentation
 
+See [docs/README.md](docs/README.md) for a complete list of documentation.
+
+### Quick Links
+
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/ARCHITECTURE.md) | Technical design and LLM integration patterns |
@@ -249,7 +253,7 @@ Create multi-step document creation pipelines:
 | [API Reference](docs/API_REFERENCE.md) | All Convex functions |
 | [Convex Guide](docs/CONVEX_GUIDE.md) | Backend patterns for new contributors |
 | [Frontend Guide](docs/FRONTEND_GUIDE.md) | Frontend patterns and components |
-| [Workflow System](docs/WORKFLOW_SYSTEM_PLAN.md) | Workflow feature documentation |
+| [Roadmap](docs/ROADMAP.md) | Feature development status |
 
 ## Contributing
 

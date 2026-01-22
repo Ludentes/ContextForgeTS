@@ -5,7 +5,7 @@
 > This document was written during the research phase exploring Convex + Vercel AI SDK integration patterns. **We decided NOT to use Vercel AI SDK.**
 >
 > **For current implementation, see:**
-> - [ARCHITECTURE.md](./ARCHITECTURE.md#llm-integration) - What we actually built
+> - [ARCHITECTURE.md](../ARCHITECTURE.md#llm-integration) - What we actually built
 >
 > **Why we didn't use Vercel AI SDK:**
 > - Claude Code uses subprocess protocol, not HTTP (incompatible with Vercel AI SDK)
