@@ -104,6 +104,17 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
   // Abort controller for Ollama HTTP streaming
   const abortControllerRef = useRef<AbortController | null>(null)
 
+  // Clear conversation when session changes
+  useEffect(() => {
+    setMessages([])
+    setStreamingText("")
+    setError(null)
+    setGenerationId(null)
+    setIsStreaming(false)
+    prevTextRef.current = ""
+    abortControllerRef.current?.abort()
+  }, [sessionId])
+
   // Convex mutations (for Claude)
   const startBrainstormGeneration = useMutation(api.generations.startBrainstormGeneration)
   const saveBrainstormMessage = useMutation(api.generations.saveBrainstormMessage)
