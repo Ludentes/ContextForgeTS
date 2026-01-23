@@ -18,7 +18,7 @@ interface ProviderHealth {
 function useProviderHealth() {
   const [health, setHealth] = useState<ProviderHealth>({
     ollama: null,
-    claude: null,
+    claude: { ok: false, disabled: true }, // Default to disabled until features load
     openrouter: null,
   })
   const features = useQuery(api.features.getFlags)
