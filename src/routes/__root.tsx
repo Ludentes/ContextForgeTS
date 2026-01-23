@@ -211,8 +211,8 @@ function UnauthenticatedHeader() {
 
 function RootLayout() {
   return (
-    <DndProvider>
-      <SessionProvider>
+    <SessionProvider>
+      <DndProvider>
         <div className="min-h-screen bg-background">
           <AuthLoading>
             <LoadingLayout />
@@ -225,8 +225,8 @@ function RootLayout() {
           </Unauthenticated>
         </div>
         <TanStackRouterDevtools />
-      </SessionProvider>
-    </DndProvider>
+      </DndProvider>
+    </SessionProvider>
   )
 }
 
