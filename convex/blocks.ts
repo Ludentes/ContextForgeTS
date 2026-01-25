@@ -24,6 +24,19 @@ export const removeInternal = internalMutation({
   },
 })
 
+// Internal: list blocks for a session (bypasses auth for server-side actions)
+// Use this for scheduled actions that run without user context
+export const listBySessionInternal = internalQuery({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("blocks")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .order("desc")
+      .collect()
+  },
+})
+
 // Get next position for a zone within a session
 // NOTE: Uses .first() instead of .collect() to avoid fetching all blocks (N+1 prevention)
 async function getNextPosition(

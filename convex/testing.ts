@@ -87,6 +87,38 @@ export const resetSessions = internalMutation({
   },
 })
 
+// Reset all auth data - clears users, sessions, accounts, etc.
+export const resetAuth = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const tables = [
+      "authSessions",
+      "authAccounts",
+      "authRefreshTokens",
+      "authVerificationCodes",
+      "authVerifiers",
+      "users",
+    ]
+
+    const results: Record<string, number> = {}
+
+    for (const table of tables) {
+      try {
+        // @ts-expect-error - dynamic table access
+        const docs = await ctx.db.query(table).collect()
+        for (const doc of docs) {
+          await ctx.db.delete(doc._id)
+        }
+        results[table] = docs.length
+      } catch {
+        results[table] = 0 // Table might not exist
+      }
+    }
+
+    return results
+  },
+})
+
 // Reset all test data
 export const resetAll = internalMutation({
   args: {},

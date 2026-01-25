@@ -186,6 +186,28 @@ http.route({
   }),
 })
 
+// ============ Testing: Reset Auth ============
+// Reset all auth data (for development only)
+http.route({
+  path: "/testing/reset-auth",
+  method: "POST",
+  handler: httpAction(async (ctx) => {
+    const result = await ctx.runMutation(internal.testing.resetAuth)
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    })
+  }),
+})
+
+http.route({
+  path: "/testing/reset-auth",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }),
+})
+
 // ============ Auth Endpoints ============
 // Add Convex Auth routes for OAuth and password authentication
 auth.addHttpRoutes(http)

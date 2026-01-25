@@ -25,7 +25,7 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Redirect to home when authenticated (handles both initial load and after sign-in)
+  // Redirect to home when authenticated
   useEffect(() => {
     if (isAuthenticated && !isAuthLoading) {
       navigate({ to: "/" })
@@ -47,7 +47,7 @@ function LoginPage() {
       }
 
       await signIn("password", formData)
-      // Don't navigate here - let the useEffect handle it when auth state updates
+      // Navigation happens via useEffect when auth state updates
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed")
     } finally {

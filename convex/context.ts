@@ -6,6 +6,7 @@ import { query } from "./_generated/server"
 import { v } from "convex/values"
 import { assembleContext, extractSystemPromptFromBlocks, type ContextMessage } from "./lib/context"
 import { countTokens } from "./lib/tokenizer"
+import { canAccessSession } from "./lib/auth"
 
 /**
  * Format for context export.
@@ -56,6 +57,12 @@ export const getAssembled = query({
     includePromptPlaceholder: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return { text: "", tokens: 0, format: args.format ?? "plain", blockCount: 0 }
+    }
+
     const format = args.format ?? "plain"
     const includePlaceholder = args.includePromptPlaceholder ?? true
 
@@ -115,6 +122,20 @@ export const getPreview = query({
     sessionId: v.id("sessions"),
   },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return {
+        zones: {
+          PERMANENT: { blocks: 0, tokens: 0, content: "" },
+          STABLE: { blocks: 0, tokens: 0, content: "" },
+          WORKING: { blocks: 0, tokens: 0, content: "" },
+        },
+        totalBlocks: 0,
+        totalTokens: 0,
+      }
+    }
+
     const blocks = await ctx.db
       .query("blocks")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))

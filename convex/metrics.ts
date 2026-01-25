@@ -1,6 +1,7 @@
 import { query } from "./_generated/server"
 import { v } from "convex/values"
 import { countTokens } from "./lib/tokenizer"
+import { canAccessSession } from "./lib/auth"
 
 // Default budgets (matches Python implementation)
 export const DEFAULT_BUDGETS = {
@@ -21,6 +22,20 @@ export const getZoneMetrics = query({
     sessionId: v.id("sessions"),
   },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return {
+        zones: {
+          PERMANENT: { blocks: 0, tokens: 0, budget: DEFAULT_BUDGETS.permanent, percentUsed: 0 },
+          STABLE: { blocks: 0, tokens: 0, budget: DEFAULT_BUDGETS.stable, percentUsed: 0 },
+          WORKING: { blocks: 0, tokens: 0, budget: DEFAULT_BUDGETS.working, percentUsed: 0 },
+        },
+        total: { blocks: 0, tokens: 0, budget: DEFAULT_BUDGETS.total, percentUsed: 0 },
+        budgets: DEFAULT_BUDGETS,
+      }
+    }
+
     // Get session for custom budgets
     const session = await ctx.db.get(args.sessionId)
     if (!session) throw new Error("Session not found")
@@ -83,6 +98,21 @@ export const checkBudget = query({
     additionalTokens: v.number(),
   },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return {
+        currentTokens: 0,
+        additionalTokens: args.additionalTokens,
+        newTotal: args.additionalTokens,
+        budget: DEFAULT_BUDGETS.total,
+        wouldExceed: false,
+        percentUsed: 0,
+        warning: false,
+        danger: false,
+      }
+    }
+
     // Get session for custom budgets
     const session = await ctx.db.get(args.sessionId)
     if (!session) throw new Error("Session not found")
@@ -93,7 +123,7 @@ export const checkBudget = query({
     const blocks = await ctx.db
       .query("blocks")
       .withIndex("by_session_zone", (q) =>
-        q.eq("sessionId", args.sessionId).eq("zone", args.zone)
+        q.eq("sessionId", args.sessionId).eq("zone", args.zone as "PERMANENT" | "STABLE" | "WORKING")
       )
       .collect()
 
@@ -145,6 +175,17 @@ export const getBudgetStatus = query({
     sessionId: v.id("sessions"),
   },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return {
+        permanent: { tokens: 0, budget: DEFAULT_BUDGETS.permanent, status: "ok" as const },
+        stable: { tokens: 0, budget: DEFAULT_BUDGETS.stable, status: "ok" as const },
+        working: { tokens: 0, budget: DEFAULT_BUDGETS.working, status: "ok" as const },
+        total: { tokens: 0, budget: DEFAULT_BUDGETS.total, status: "ok" as const },
+      }
+    }
+
     const session = await ctx.db.get(args.sessionId)
     if (!session) throw new Error("Session not found")
 
@@ -169,9 +210,9 @@ export const getBudgetStatus = query({
 
     const getStatus = (tokens: number, budget: number) => {
       const percent = (tokens / budget) * 100
-      if (percent > 95) return "danger"
-      if (percent > 80) return "warning"
-      return "ok"
+      if (percent > 95) return "danger" as const
+      if (percent > 80) return "warning" as const
+      return "ok" as const
     }
 
     return {

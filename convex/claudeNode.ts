@@ -11,7 +11,7 @@
  */
 
 import { action } from "./_generated/server"
-import { api, internal } from "./_generated/api"
+import { internal } from "./_generated/api"
 import { v } from "convex/values"
 import { query as claudeQuery } from "@anthropic-ai/claude-agent-sdk"
 import { spawn, execSync } from "child_process"
@@ -329,8 +329,8 @@ export const streamGenerateWithContext = action({
     const throttleMs = args.throttleMs ?? 100
     const startTime = Date.now()
 
-    // Get blocks for context assembly
-    const blocks = await ctx.runQuery(api.blocks.list, {
+    // Get blocks for context assembly (use internal query to bypass auth in scheduled actions)
+    const blocks = await ctx.runQuery(internal.blocks.listBySessionInternal, {
       sessionId: args.sessionId,
     })
 
@@ -509,8 +509,8 @@ export const streamBrainstormMessage = action({
     const startTime = Date.now()
     const disableAgentBehavior = args.disableAgentBehavior ?? true
 
-    // Get blocks for context assembly
-    const blocks = await ctx.runQuery(api.blocks.list, {
+    // Get blocks for context assembly (use internal query to bypass auth in scheduled actions)
+    const blocks = await ctx.runQuery(internal.blocks.listBySessionInternal, {
       sessionId: args.sessionId,
     })
 
@@ -530,7 +530,23 @@ export const streamBrainstormMessage = action({
     )
     const prompt = formatMessagesAsPrompt(messages)
 
+    // Create LangFuse trace for observability
+    const trace = createGeneration(
+      "claude-brainstorm",
+      {
+        sessionId: args.sessionId,
+        provider: "claude",
+        model: "claude-code",
+      },
+      {
+        systemPrompt,
+        messages,
+        prompt,
+      }
+    )
+
     let buffer = ""
+    let fullText = ""
     let lastFlush = Date.now()
 
     // Usage tracking
@@ -573,6 +589,7 @@ export const streamBrainstormMessage = action({
             if (delta && delta.type === "text_delta" && typeof delta.text === "string") {
               hasReceivedStreamEvents = true
               buffer += delta.text
+              fullText += delta.text
 
               // Throttle writes
               const now = Date.now()
@@ -592,6 +609,7 @@ export const streamBrainstormMessage = action({
             for (const block of content) {
               if (block.type === "text" && typeof block.text === "string") {
                 buffer += block.text
+                fullText += block.text
                 await flushBuffer()
               }
             }
@@ -622,6 +640,16 @@ export const streamBrainstormMessage = action({
         costUsd,
         durationMs,
       })
+
+      // Complete LangFuse trace
+      trace.complete({
+        text: fullText,
+        inputTokens,
+        outputTokens,
+        costUsd,
+        durationMs,
+      })
+      await flushLangfuse()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error(`[Claude Brainstorm] Error: ${errorMessage}`)
@@ -634,6 +662,10 @@ export const streamBrainstormMessage = action({
         generationId: args.generationId,
         error: `Claude Code error: ${errorMessage}`,
       })
+
+      // Record error in LangFuse
+      trace.error(errorMessage)
+      await flushLangfuse()
     }
   },
 })

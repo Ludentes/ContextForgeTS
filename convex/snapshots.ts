@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server"
 import { v } from "convex/values"
+import { canAccessSession, requireSessionAccess } from "./lib/auth"
 
 // ============ Queries ============
 
@@ -7,6 +8,12 @@ import { v } from "convex/values"
 export const list = query({
   args: { sessionId: v.id("sessions") },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return []
+    }
+
     return await ctx.db
       .query("snapshots")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
@@ -19,7 +26,16 @@ export const list = query({
 export const get = query({
   args: { id: v.id("snapshots") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id)
+    const snapshot = await ctx.db.get(args.id)
+    if (!snapshot) return null
+
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, snapshot.sessionId)
+    if (!hasAccess) {
+      return null
+    }
+
+    return snapshot
   },
 })
 
@@ -32,7 +48,9 @@ export const create = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    // Verify session exists
+    // Verify session exists and user has access
+    await requireSessionAccess(ctx, args.sessionId)
+
     const session = await ctx.db.get(args.sessionId)
     if (!session) throw new Error("Session not found")
 
@@ -70,7 +88,9 @@ export const restore = mutation({
     const snapshot = await ctx.db.get(args.id)
     if (!snapshot) throw new Error("Snapshot not found")
 
-    // Verify session still exists
+    // Verify session exists and user has access
+    await requireSessionAccess(ctx, snapshot.sessionId)
+
     const session = await ctx.db.get(snapshot.sessionId)
     if (!session) throw new Error("Session not found")
 
@@ -113,6 +133,12 @@ export const restore = mutation({
 export const remove = mutation({
   args: { id: v.id("snapshots") },
   handler: async (ctx, args) => {
+    const snapshot = await ctx.db.get(args.id)
+    if (!snapshot) throw new Error("Snapshot not found")
+
+    // Check session access
+    await requireSessionAccess(ctx, snapshot.sessionId)
+
     await ctx.db.delete(args.id)
   },
 })
@@ -126,6 +152,9 @@ export const rename = mutation({
   handler: async (ctx, args) => {
     const snapshot = await ctx.db.get(args.id)
     if (!snapshot) throw new Error("Snapshot not found")
+
+    // Check session access
+    await requireSessionAccess(ctx, snapshot.sessionId)
 
     await ctx.db.patch(args.id, { name: args.name })
     return args.id

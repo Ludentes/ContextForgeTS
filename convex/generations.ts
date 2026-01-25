@@ -11,6 +11,7 @@ import { mutation, query, internalMutation } from "./_generated/server"
 import { api } from "./_generated/api"
 import { v } from "convex/values"
 import { countTokens, DEFAULT_TOKEN_MODEL } from "./lib/tokenizer"
+import { canAccessSession } from "./lib/auth"
 
 /**
  * Create a new generation record.
@@ -151,7 +152,16 @@ export const get = query({
     generationId: v.id("generations"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.generationId)
+    const generation = await ctx.db.get(args.generationId)
+    if (!generation) return null
+
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, generation.sessionId)
+    if (!hasAccess) {
+      return null
+    }
+
+    return generation
   },
 })
 
@@ -164,6 +174,12 @@ export const getLatest = query({
     sessionId: v.id("sessions"),
   },
   handler: async (ctx, args) => {
+    // Check session access
+    const hasAccess = await canAccessSession(ctx, args.sessionId)
+    if (!hasAccess) {
+      return null
+    }
+
     const generations = await ctx.db
       .query("generations")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
