@@ -1,5 +1,10 @@
 # Documentation
 
+## Quick Start
+
+- **[IMPLEMENTATION-ORDER.md](./IMPLEMENTATION-ORDER.md)** - Prioritized task list and sprint planning
+- **[PROGRESS.md](./PROGRESS.md)** - Development log and decisions
+
 ## Active Documentation
 
 ### Getting Started
@@ -23,7 +28,24 @@
 |----------|-------------|
 | [ROADMAP.md](./ROADMAP.md) | Feature slices and development status |
 | [CONTEXT_OPTIMIZATION_AND_CACHING.md](./CONTEXT_OPTIMIZATION_AND_CACHING.md) | LLM caching strategies |
-| [PROGRESS.md](./PROGRESS.md) | Development log and decisions |
+
+### Tasks & Bugs
+| Directory | Description |
+|-----------|-------------|
+| [tasks/](./tasks/) | Open tasks and bug reports |
+| [BugReports/](./BugReports/) | Bug analysis documents |
+| [completed/tasks/](./completed/tasks/) | Completed task documentation |
+
+### Features
+| Feature | Status | Documentation |
+|---------|--------|---------------|
+| Compression | ✅ Completed | [features/compression/](./features/compression/) |
+
+### Design
+| Document | Description |
+|----------|-------------|
+| [design/DESIGN-block-type-usage.md](./design/DESIGN-block-type-usage.md) | Block type documentation |
+| [design/DESIGN-brainstorm-questioning.md](./design/DESIGN-brainstorm-questioning.md) | Future: Brainstorm questioning modes |
 
 ---
 

@@ -569,4 +569,96 @@ pnpm build          # ✓ Builds successfully
 
 ### Next: Slice 5.5 - Token Counting & Zone Budgets
 
-See [TOKEN_BUDGETS_PLAN.md](./TOKEN_BUDGETS_PLAN.md) for implementation plan.
+See [TOKEN_BUDGETS_PLAN.md](./completed/TOKEN_BUDGETS_PLAN.md) for implementation plan.
+
+---
+
+## Session 9: Compression & Sprint 1
+
+### Accomplishments
+
+#### Compression System (TASK-010)
+- [x] Multi-provider compression (Claude Code, OpenRouter, Ollama)
+- [x] Server-side compression via Convex actions
+- [x] Client-side compression service
+- [x] Re-compression support with quality warnings
+- [x] User-configurable provider in settings
+- [x] Single block and zone-level compression
+- [x] Comprehensive documentation (4 docs + design)
+
+#### Sprint 1 Implementation
+- [x] **TASK-002**: Delete confirmation dialogs
+  - Created reusable `ConfirmDialog` component
+  - Created `useConfirmDelete` hook
+  - Applied to block deletion
+- [x] **BUG-002**: Brainstorm input blocked on load
+  - Fixed optimistic health checks (initialize as `null` instead of disabled)
+  - Input available immediately while health checks run
+- [x] **TASK-009**: Unsaved brainstorm warnings
+  - Browser `beforeunload` warning on refresh/close
+  - Custom warning dialog on in-app navigation
+  - Warning on dialog close with unsaved content
+- [x] **Item 28**: Button debouncing
+  - Created `DebouncedButton` component
+  - Applied to 7 critical buttons (Add, Send, Generate, Compress, Save)
+  - Prevents accidental double-clicks (300-500ms debounce)
+
+#### Settings & Configuration
+- [x] Compression provider selection UI
+- [x] localStorage-based settings management
+- [x] Provider health indicators
+- [x] OpenRouter and Ollama configuration
+
+### Decisions Made
+
+#### 14. Compression Provider Architecture
+
+**Decision:** Support three compression providers with user selection.
+
+**Rationale:**
+- Claude Code: Server-side, fastest, most reliable (default)
+- OpenRouter: Cloud API, flexible model selection
+- Ollama: Local, privacy-focused, offline capable
+
+**Implementation:**
+- Settings stored in localStorage (`compression.getProvider()`)
+- Server-side routing in Convex action
+- Client-side routing in compression service
+- Fallback to Claude Code if provider unavailable
+
+#### 15. Button Debouncing Pattern
+
+**Decision:** Create reusable `DebouncedButton` component instead of individual hooks.
+
+**Rationale:**
+- Simpler to use (drop-in replacement for `Button`)
+- Consistent debounce timing across app
+- Less boilerplate than custom hooks per button
+- Disabled state automatically managed
+
+### Current State
+
+```bash
+pnpm lint           # ✓ Passes
+pnpm build          # ✓ Builds successfully
+```
+
+**Completed Features (Sprint 1):**
+- Delete confirmations on all destructive actions
+- Brainstorm input available immediately
+- Unsaved brainstorm warnings (all navigation types)
+- Button debouncing on critical actions
+- Compression system with multi-provider support
+
+**Documentation Updated:**
+- Moved completed tasks to `docs/completed/tasks/`
+- Organized compression docs in `docs/features/compression/`
+- Updated `IMPLEMENTATION-ORDER.md` with Sprint 1 completion
+
+### Next: Sprint 2 - Core Usability Fixes
+
+See [IMPLEMENTATION-ORDER.md](./IMPLEMENTATION-ORDER.md) for Sprint 2 priorities:
+1. BUG-001: Drag-drop reordering
+2. TASK-004: Block editor improvements
+3. BUG-004: Save dropdown positioning
+4. TASK-008: Brainstorm input sizing
