@@ -7,6 +7,7 @@ import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { Button } from "@/components/ui/button"
+import { DebouncedButton } from "@/components/ui/debounced-button"
 import type { Id, Doc } from "../../../convex/_generated/dataModel"
 
 interface SaveTemplateDialogProps {
@@ -159,13 +160,13 @@ export function SaveTemplateDialog({
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || isLoading}>
+            <DebouncedButton type="submit" disabled={!name.trim() || isLoading} debounceMs={500}>
               {isLoading
                 ? "Saving..."
                 : selectedTemplateId === "new"
                   ? "Save Template"
                   : "Overwrite Template"}
-            </Button>
+            </DebouncedButton>
           </div>
         </form>
       </div>

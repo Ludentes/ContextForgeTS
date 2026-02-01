@@ -9,13 +9,18 @@ const KEYS = {
   OPENROUTER_MODEL: "contextforge-openrouter-model",
   OLLAMA_URL: "contextforge-ollama-url",
   OLLAMA_MODEL: "contextforge-ollama-model",
+  COMPRESSION_PROVIDER: "contextforge-compression-provider",
 } as const
+
+// Compression provider types
+export type CompressionProvider = "claude-code" | "ollama" | "openrouter"
 
 // Default values
 const DEFAULTS = {
   OPENROUTER_MODEL: "anthropic/claude-sonnet-4",
   OLLAMA_URL: "http://localhost:11434",
   OLLAMA_MODEL: "llama3.2:latest",
+  COMPRESSION_PROVIDER: "claude-code" as CompressionProvider,
 } as const
 
 /**
@@ -69,6 +74,20 @@ export const ollama = {
 }
 
 /**
+ * Compression provider settings
+ */
+export const compression = {
+  getProvider(): CompressionProvider {
+    const provider = localStorage.getItem(KEYS.COMPRESSION_PROVIDER) as CompressionProvider | null
+    return provider || DEFAULTS.COMPRESSION_PROVIDER
+  },
+
+  setProvider(provider: CompressionProvider): void {
+    localStorage.setItem(KEYS.COMPRESSION_PROVIDER, provider)
+  },
+}
+
+/**
  * Export all settings for debugging/testing
  */
 export function getAllSettings(): Record<string, string | null> {
@@ -77,6 +96,7 @@ export function getAllSettings(): Record<string, string | null> {
     openrouterModel: openrouter.getModel(),
     ollamaUrl: ollama.getUrl(),
     ollamaModel: ollama.getModel(),
+    compressionProvider: compression.getProvider(),
   }
 }
 

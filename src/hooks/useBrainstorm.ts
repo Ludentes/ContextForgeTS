@@ -81,6 +81,7 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
 
   // Conversation state (ephemeral - lost on close/refresh)
   const [messages, setMessages] = useState<Message[]>([])
+  const [hasUnsavedContent, setHasUnsavedContent] = useState(false)
 
   // Streaming state
   const [generationId, setGenerationId] = useState<Id<"generations"> | null>(null)
@@ -176,6 +177,7 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
   // Clear conversation
   const clearConversation = useCallback(() => {
     setMessages([])
+    setHasUnsavedContent(false)
     setStreamingText("")
     setError(null)
     setGenerationId(null)
@@ -342,6 +344,7 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
         timestamp: Date.now(),
       }
       setMessages((prev) => [...prev, userMessage])
+      setHasUnsavedContent(true) // Mark as unsaved when messages are added
 
       // Start streaming
       setIsStreaming(true)
@@ -529,6 +532,7 @@ export function useBrainstorm(options: UseBrainstormOptions): UseBrainstormResul
     messages,
     isOpen,
     provider,
+    hasUnsavedContent,
 
     // Actions
     open,

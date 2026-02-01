@@ -274,3 +274,132 @@ export const remove = mutation({
     await ctx.db.delete(args.id)
   },
 })
+
+// ============ Compression mutations ============
+
+/**
+ * Compress a single block in-place.
+ * Replaces the block's content with compressed version and updates metadata.
+ */
+export const compress = mutation({
+  args: {
+    blockId: v.id("blocks"),
+    compressedContent: v.string(),
+    originalTokens: v.number(),
+    compressedTokens: v.number(),
+    compressionRatio: v.number(),
+    strategy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const block = await ctx.db.get(args.blockId)
+    if (!block) throw new Error("Block not found")
+
+    // Check session access
+    await requireSessionAccess(ctx, block.sessionId)
+
+    const now = Date.now()
+
+    // Update block with compressed content and metadata
+    await ctx.db.patch(args.blockId, {
+      // Replace content with compressed version
+      content: args.compressedContent,
+
+      // Compression metadata
+      isCompressed: true,
+      compressionStrategy: args.strategy,
+      compressionRatio: args.compressionRatio,
+      compressedAt: now,
+
+      // Token tracking - keep originalTokens, update current tokens
+      tokens: args.compressedTokens,
+      // If originalTokens wasn't set, set it now
+      originalTokens: block.originalTokens || args.originalTokens,
+
+      updatedAt: now,
+    })
+
+    // Update session's updatedAt
+    await ctx.db.patch(block.sessionId, { updatedAt: now })
+
+    return { success: true, blockId: args.blockId }
+  },
+})
+
+/**
+ * Compress and merge multiple blocks into a single compressed block.
+ * Creates a new block with merged content and deletes the original blocks.
+ */
+export const compressAndMerge = mutation({
+  args: {
+    blockIds: v.array(v.id("blocks")),
+    compressedContent: v.string(),
+    originalTokens: v.number(),
+    compressedTokens: v.number(),
+    compressionRatio: v.number(),
+    strategy: v.string(),
+    targetZone: zoneValidator,
+    targetType: v.string(),
+    targetPosition: v.number(),
+  },
+  handler: async (ctx, args) => {
+    if (args.blockIds.length === 0) {
+      throw new Error("No blocks to merge")
+    }
+
+    // Verify all blocks exist and get session
+    const blocks = await Promise.all(args.blockIds.map((id) => ctx.db.get(id)))
+
+    const firstBlock = blocks[0]
+    if (!firstBlock) throw new Error("First block not found")
+
+    // Check session access
+    await requireSessionAccess(ctx, firstBlock.sessionId)
+
+    // Verify all blocks belong to same session
+    const sessionId = firstBlock.sessionId
+    for (const block of blocks) {
+      if (!block) throw new Error("Block not found")
+      if (block.sessionId !== sessionId) {
+        throw new Error("All blocks must belong to same session")
+      }
+    }
+
+    const now = Date.now()
+
+    // Create new merged block
+    const newBlockId = await ctx.db.insert("blocks", {
+      sessionId,
+      content: args.compressedContent,
+      zone: args.targetZone,
+      type: args.targetType,
+      position: args.targetPosition,
+
+      // Compression metadata
+      isCompressed: true,
+      compressionStrategy: args.strategy,
+      compressionRatio: args.compressionRatio,
+      compressedAt: now,
+      mergedFromCount: args.blockIds.length,
+
+      // Token tracking
+      tokens: args.compressedTokens,
+      originalTokens: args.originalTokens,
+      tokenModel: DEFAULT_TOKEN_MODEL,
+
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    // Delete all original blocks
+    await Promise.all(args.blockIds.map((id) => ctx.db.delete(id)))
+
+    // Update session's updatedAt
+    await ctx.db.patch(sessionId, { updatedAt: now })
+
+    return {
+      success: true,
+      newBlockId,
+      blocksDeleted: args.blockIds.length,
+    }
+  },
+})

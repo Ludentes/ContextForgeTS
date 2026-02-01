@@ -3,15 +3,25 @@
  */
 
 import { cn } from "@/lib/utils"
+import { Minimize2 } from "lucide-react"
 
 interface ZoneHeaderProps {
   zone: string
   blockCount: number
   tokens: number
   budget: number
+  onCompress?: () => void
+  isCompressing?: boolean
 }
 
-export function ZoneHeader({ zone, blockCount, tokens, budget }: ZoneHeaderProps) {
+export function ZoneHeader({
+  zone,
+  blockCount,
+  tokens,
+  budget,
+  onCompress,
+  isCompressing,
+}: ZoneHeaderProps) {
   const percentUsed = Math.round((tokens / budget) * 100)
   const isWarning = percentUsed > 80 && percentUsed <= 95
   const isDanger = percentUsed > 95
@@ -31,6 +41,17 @@ export function ZoneHeader({ zone, blockCount, tokens, budget }: ZoneHeaderProps
         <span className="text-xs text-muted-foreground">
           {blockCount} {blockCount === 1 ? "block" : "blocks"}
         </span>
+        {onCompress && blockCount > 1 && (
+          <button
+            onClick={onCompress}
+            disabled={isCompressing}
+            className="px-1.5 py-0.5 text-[10px] rounded border border-input hover:bg-muted disabled:opacity-50 flex items-center gap-1"
+            title="Compress all blocks in this zone"
+          >
+            <Minimize2 className="w-2.5 h-2.5" />
+            {isCompressing ? "..." : "Compress"}
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <span

@@ -14,6 +14,7 @@ import { DndProvider } from "@/components/dnd"
 import { SessionProvider, useSession } from "@/contexts/SessionContext"
 import { SaveTemplateDialog, ApplyTemplateDialog } from "@/components/templates"
 import { AddToProjectDialog } from "@/components/projects"
+import { ToastProvider } from "@/components/ui/toast"
 
 // Simple theme toggle hook
 function useTheme() {
@@ -211,22 +212,24 @@ function UnauthenticatedHeader() {
 
 function RootLayout() {
   return (
-    <SessionProvider>
-      <DndProvider>
-        <div className="min-h-screen bg-background">
-          <AuthLoading>
-            <LoadingLayout />
-          </AuthLoading>
-          <Authenticated>
-            <AuthenticatedLayout />
-          </Authenticated>
-          <Unauthenticated>
-            <UnauthenticatedLayout />
-          </Unauthenticated>
-        </div>
-        <TanStackRouterDevtools />
-      </DndProvider>
-    </SessionProvider>
+    <ToastProvider>
+      <SessionProvider>
+        <DndProvider>
+          <div className="min-h-screen bg-background">
+            <AuthLoading>
+              <LoadingLayout />
+            </AuthLoading>
+            <Authenticated>
+              <AuthenticatedLayout />
+            </Authenticated>
+            <Unauthenticated>
+              <UnauthenticatedLayout />
+            </Unauthenticated>
+          </div>
+          <TanStackRouterDevtools />
+        </DndProvider>
+      </SessionProvider>
+    </ToastProvider>
   )
 }
 

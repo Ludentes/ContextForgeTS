@@ -107,6 +107,13 @@ export default defineSchema({
     tokens: v.optional(v.number()), // Current token count
     originalTokens: v.optional(v.number()), // Original token count (before compression)
     tokenModel: v.optional(v.string()), // Model used for counting (e.g., "cl100k_base")
+    // Compression state
+    isCompressed: v.optional(v.boolean()), // Whether this block has been compressed
+    compressionStrategy: v.optional(v.string()), // "semantic" | "structural" | "statistical"
+    compressionRatio: v.optional(v.number()), // e.g., 2.5 means 2.5x smaller
+    compressedAt: v.optional(v.number()), // Timestamp when compressed
+    // Merge tracking (for multi-block compression)
+    mergedFromCount: v.optional(v.number()), // Number of blocks that were merged into this one
   })
     .index("by_zone", ["zone", "position"]) // Legacy index
     .index("by_session", ["sessionId"])

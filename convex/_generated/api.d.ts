@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as blocks from "../blocks.js";
 import type * as claudeNode from "../claudeNode.js";
+import type * as compression from "../compression.js";
 import type * as context from "../context.js";
 import type * as counters from "../counters.js";
 import type * as features from "../features.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   blocks: typeof blocks;
   claudeNode: typeof claudeNode;
+  compression: typeof compression;
   context: typeof context;
   counters: typeof counters;
   features: typeof features;

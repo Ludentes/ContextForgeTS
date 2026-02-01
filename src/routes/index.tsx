@@ -25,6 +25,13 @@ import {
   type BlockType,
 } from "@/lib/blockTypes"
 import { useNavigate } from "@tanstack/react-router"
+import { useCompression } from "@/hooks/useCompression"
+import { useConfirmDelete } from "@/hooks/useConfirmDelete"
+import { Minimize2 } from "lucide-react"
+import { CompressionDialog } from "@/components/compression/CompressionDialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { DebouncedButton } from "@/components/ui/debounced-button"
+import { useToast } from "@/components/ui/toast"
 
 // Zone display info
 const ZONE_INFO: Record<Zone, { label: string; description: string }> = {
@@ -141,9 +148,9 @@ function AddBlockForm({ sessionId }: { sessionId: Id<"sessions"> }) {
           <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setIsExpanded(false)}>
             Cancel
           </Button>
-          <Button type="submit" size="sm" className="h-6 px-2 text-xs" disabled={!content.trim() || budgetStatus?.wouldExceed}>
+          <DebouncedButton type="submit" size="sm" className="h-6 px-2 text-xs" disabled={!content.trim() || budgetStatus?.wouldExceed} debounceMs={300}>
             Add
-          </Button>
+          </DebouncedButton>
         </div>
       </div>
     </form>
@@ -194,6 +201,11 @@ function BlockCard({
   zone,
   createdAt,
   tokens,
+  isCompressed,
+  compressionRatio,
+  sessionId,
+  isSelected,
+  onSelect,
 }: {
   id: Id<"blocks">
   content: string
@@ -201,14 +213,46 @@ function BlockCard({
   zone: Zone
   createdAt: number
   tokens?: number
+  isCompressed?: boolean
+  compressionRatio?: number
+  sessionId: Id<"sessions">
+  isSelected?: boolean
+  onSelect?: (selected: boolean) => void
 }) {
   const [showActions, setShowActions] = useState(false)
   const removeBlock = useMutation(api.blocks.remove)
   const moveBlock = useMutation(api.blocks.move)
+  const { toast } = useToast()
+
+  // Delete confirmation
+  const deleteConfirm = useConfirmDelete({
+    onDelete: async () => {
+      await removeBlock({ id })
+    },
+    getTitle: () => "Delete this block?",
+    getDescription: () => {
+      const preview = content.slice(0, 100)
+      return `"${preview}${content.length > 100 ? "..." : ""}" will be permanently deleted.`
+    },
+  })
+
+  // Compression hook
+  const { compressSingle, isCompressing } = useCompression({
+    sessionId,
+    onSuccess: (result) => {
+      toast.success(
+        "Block compressed!",
+        `Saved ${result.tokensSaved} tokens (${result.compressionRatio.toFixed(1)}x)`
+      )
+    },
+    onError: (error) => {
+      toast.error("Compression failed", error)
+    },
+  })
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    await removeBlock({ id })
+    deleteConfirm.requestDelete({ id, content })
   }
 
   const handleMove = async (e: React.MouseEvent, targetZone: Zone) => {
@@ -221,25 +265,72 @@ function BlockCard({
     await navigator.clipboard.writeText(content)
   }
 
+  const handleCompress = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    await compressSingle(
+      { _id: id, content, type, tokens, isCompressed },
+      "semantic"
+    )
+  }
+
   const typeMeta = getBlockTypeMetadata(type)
   const otherZones = ZONES.filter((z) => z !== zone)
 
+  // Check if block is suitable for compression
+  // Allow re-compression of already compressed blocks
+  const canCompress = (tokens ?? 0) >= 100
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation()
+    onSelect?.(e.target.checked)
+  }
+
   return (
     <div
-      className="rounded border border-border bg-card p-2 select-none hover:border-border/80 transition-colors"
+      className={cn(
+        "rounded border bg-card p-2 select-none hover:border-border/80 transition-colors",
+        isSelected ? "border-primary bg-primary/5" : "border-border"
+      )}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
       <div className="flex items-center justify-between gap-1 mb-1">
         <div className="flex items-center gap-1.5 min-w-0">
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={handleCheckboxChange}
+              className="shrink-0 w-3 h-3 rounded border-input"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
           <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium", typeMeta.color)}>
             {typeMeta.displayName}
           </span>
           <span className="text-[10px] text-muted-foreground">{formatTimeAgo(createdAt)}</span>
           {tokens && <span className="text-[10px] text-muted-foreground font-mono">{tokens}t</span>}
+          {isCompressed && compressionRatio && (
+            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center gap-0.5">
+              <Minimize2 className="w-2.5 h-2.5" />
+              {compressionRatio.toFixed(1)}x
+            </span>
+          )}
         </div>
         {showActions && (
           <div className="flex gap-0.5 shrink-0">
+            {canCompress && (
+              <DebouncedButton
+                onClick={handleCompress}
+                disabled={isCompressing}
+                variant="ghost"
+                size="sm"
+                className="h-auto px-1.5 py-0.5 text-[10px]"
+                debounceMs={300}
+              >
+                {isCompressing ? "..." : "Compress"}
+              </DebouncedButton>
+            )}
             <button onClick={handleCopy} className="px-1.5 py-0.5 text-[10px] rounded hover:bg-muted">Copy</button>
             <Link
               to="/blocks/$blockId"
@@ -269,6 +360,16 @@ function BlockCard({
           ))}
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={deleteConfirm.isOpen}
+        onOpenChange={(open) => !open && deleteConfirm.cancelDelete()}
+        title={deleteConfirm.title}
+        description={deleteConfirm.description}
+        onConfirm={deleteConfirm.confirmDelete}
+        loading={deleteConfirm.isDeleting}
+      />
     </div>
   )
 }
@@ -278,19 +379,66 @@ function ZoneColumn({
   sessionId,
   zone,
   zoneMetrics,
+  selectedBlockIds,
+  onBlockSelect,
 }: {
   sessionId: Id<"sessions">
   zone: Zone
   zoneMetrics?: { blocks: number; tokens: number; budget: number; percentUsed: number }
+  selectedBlockIds: Set<Id<"blocks">>
+  onBlockSelect: (blockId: Id<"blocks">, selected: boolean) => void
 }) {
+  const [isZoneCompressionDialogOpen, setIsZoneCompressionDialogOpen] = useState(false)
   const blocks = useQuery(api.blocks.listByZone, { sessionId, zone })
   const info = ZONE_INFO[zone]
+  const { toast } = useToast()
   const { isDragOver, dropProps } = useFileDrop({
     sessionId,
     zone,
     onSuccess: () => {},
     onError: () => {},
   })
+
+  // Compression hook for zone compression
+  const {
+    compressAndMerge,
+    isCompressing: isZoneCompressing,
+    result: zoneCompressResult,
+    error: zoneCompressError,
+  } = useCompression({
+    sessionId,
+    onSuccess: (result) => {
+      toast.success(
+        `${info.label} zone compressed!`,
+        `Merged ${blocks?.length} blocks, saved ${result.tokensSaved} tokens`
+      )
+    },
+    onError: (error) => {
+      toast.error(`Zone compression failed`, error)
+    },
+  })
+
+  const handleZoneCompress = () => {
+    setIsZoneCompressionDialogOpen(true)
+  }
+
+  const handleZoneCompressConfirm = async (targetZone: string, targetType: string) => {
+    if (!blocks || blocks.length === 0) return
+    await compressAndMerge(
+      blocks.map((b) => ({
+        _id: b._id,
+        content: b.content,
+        type: b.type,
+        tokens: b.tokens ?? undefined,
+        isCompressed: b.isCompressed,
+      })),
+      {
+        strategy: "semantic",
+        targetZone: zone, // Keep in same zone
+        targetType,
+      }
+    )
+  }
 
   const sortedBlocks = blocks ? [...blocks].sort((a, b) => a.position - b.position) : []
   const blockIds = sortedBlocks.map((b) => b._id)
@@ -306,6 +454,8 @@ function ZoneColumn({
             blockCount={zoneMetrics.blocks}
             tokens={zoneMetrics.tokens}
             budget={zoneMetrics.budget}
+            onCompress={handleZoneCompress}
+            isCompressing={isZoneCompressing}
           />
         ) : (
           <h3 className="text-sm font-semibold">{info.label}</h3>
@@ -340,6 +490,11 @@ function ZoneColumn({
                   zone={block.zone}
                   createdAt={block.createdAt}
                   tokens={block.tokens ?? undefined}
+                  isCompressed={block.isCompressed}
+                  compressionRatio={block.compressionRatio}
+                  sessionId={sessionId}
+                  isSelected={selectedBlockIds.has(block._id)}
+                  onSelect={(selected) => onBlockSelect(block._id, selected)}
                 />
               </SortableBlock>
             ))
@@ -352,19 +507,52 @@ function ZoneColumn({
           <div className="text-xs font-medium text-primary">Drop file</div>
         </div>
       )}
+
+      {/* Zone compression dialog */}
+      {blocks && (
+        <CompressionDialog
+          isOpen={isZoneCompressionDialogOpen}
+          onClose={() => setIsZoneCompressionDialogOpen(false)}
+          blocks={blocks.map((b) => ({
+            _id: b._id,
+            content: b.content,
+            type: b.type,
+            tokens: b.tokens ?? undefined,
+            isCompressed: b.isCompressed,
+          }))}
+          onCompress={handleZoneCompressConfirm}
+          isCompressing={isZoneCompressing}
+          result={zoneCompressResult}
+          error={zoneCompressError}
+        />
+      )}
     </div>
   )
 }
 
 // Zone layout
-function ZoneLayout({ sessionId }: { sessionId: Id<"sessions"> }) {
+function ZoneLayout({
+  sessionId,
+  selectedBlockIds,
+  onBlockSelect,
+}: {
+  sessionId: Id<"sessions">
+  selectedBlockIds: Set<Id<"blocks">>
+  onBlockSelect: (blockId: Id<"blocks">, selected: boolean) => void
+}) {
   const metrics = useQuery(api.metrics.getZoneMetrics, { sessionId })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1 min-h-0">
       {ZONES.map((zone) => (
         <div key={zone} className="rounded border border-border bg-card p-2 flex flex-col min-h-0 overflow-hidden">
-          <ZoneColumn sessionId={sessionId} zone={zone} zoneMetrics={metrics?.zones[zone]} />
+          <ZoneColumn
+            sessionId={sessionId}
+            zone={zone}
+            zoneMetrics={metrics?.zones[zone]}
+            selectedBlockIds={selectedBlockIds}
+            onBlockSelect={onBlockSelect}
+          />
         </div>
       ))}
     </div>
@@ -455,6 +643,65 @@ function WorkflowStepIndicator({ sessionId }: { sessionId: Id<"sessions"> }) {
 // Home page
 function HomePage() {
   const { sessionId, isLoading } = useSession()
+  const [selectedBlockIds, setSelectedBlockIds] = useState<Set<Id<"blocks">>>(new Set())
+  const [isCompressionDialogOpen, setIsCompressionDialogOpen] = useState(false)
+  const { toast } = useToast()
+
+  // Fetch all blocks for multi-select compression
+  const allBlocks = useQuery(api.blocks.list, sessionId ? { sessionId } : "skip")
+
+  // Compression hook for multi-block merge
+  const {
+    compressAndMerge,
+    isCompressing: isMergeCompressing,
+    result: mergeResult,
+    error: mergeError,
+  } = useCompression({
+    sessionId: sessionId!,
+    onSuccess: (result) => {
+      // Clear selection after successful compression
+      setSelectedBlockIds(new Set())
+      toast.success(
+        "Compression successful!",
+        `Saved ${result.tokensSaved} tokens (${result.compressionRatio.toFixed(1)}x compression)`
+      )
+    },
+    onError: (error) => {
+      toast.error("Compression failed", error)
+    },
+  })
+
+  const selectedBlocks = allBlocks
+    ? allBlocks.filter((b) => selectedBlockIds.has(b._id))
+    : []
+
+  const handleBlockSelect = (blockId: Id<"blocks">, selected: boolean) => {
+    setSelectedBlockIds((prev) => {
+      const next = new Set(prev)
+      if (selected) {
+        next.add(blockId)
+      } else {
+        next.delete(blockId)
+      }
+      return next
+    })
+  }
+
+  const handleClearSelection = () => {
+    setSelectedBlockIds(new Set())
+  }
+
+  const handleOpenCompressionDialog = () => {
+    setIsCompressionDialogOpen(true)
+  }
+
+  const handleCompress = async (targetZone: string, targetType: string) => {
+    await compressAndMerge(selectedBlocks, {
+      strategy: "semantic",
+      targetZone,
+      targetType,
+    })
+  }
 
   if (isLoading) {
     return <div className="text-center py-12 text-muted-foreground">Loading...</div>
@@ -482,7 +729,44 @@ function HomePage() {
       </div>
 
       {/* Zones take remaining space */}
-      <ZoneLayout sessionId={sessionId} />
+      <ZoneLayout
+        sessionId={sessionId}
+        selectedBlockIds={selectedBlockIds}
+        onBlockSelect={handleBlockSelect}
+      />
+
+      {/* Floating action bar for multi-select */}
+      {selectedBlockIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-card border border-border rounded-lg shadow-lg p-3 flex items-center gap-3 z-40">
+          <span className="text-sm font-medium">
+            {selectedBlockIds.size} block{selectedBlockIds.size > 1 ? "s" : ""} selected
+          </span>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={handleClearSelection}>
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleOpenCompressionDialog}
+              disabled={selectedBlockIds.size < 2}
+            >
+              <Minimize2 className="w-4 h-4 mr-1" />
+              Compress & Merge
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Compression dialog */}
+      <CompressionDialog
+        isOpen={isCompressionDialogOpen}
+        onClose={() => setIsCompressionDialogOpen(false)}
+        blocks={selectedBlocks}
+        onCompress={handleCompress}
+        isCompressing={isMergeCompressing}
+        result={mergeResult}
+        error={mergeError}
+      />
     </div>
   )
 }

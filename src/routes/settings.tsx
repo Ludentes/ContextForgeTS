@@ -5,10 +5,11 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
+import { DebouncedButton } from "@/components/ui/debounced-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { openrouter, ollama } from "@/lib/llm"
-import { openrouter as openrouterSettings, ollama as ollamaSettings } from "@/lib/llm/settings"
+import { openrouter as openrouterSettings, ollama as ollamaSettings, compression as compressionSettings, type CompressionProvider } from "@/lib/llm/settings"
 
 // Provider health status
 interface ProviderStatus {
@@ -127,9 +128,9 @@ function OpenRouterSettings() {
       </div>
 
       <div className="flex items-center gap-2 pt-2">
-        <Button onClick={handleSave} disabled={!apiKey}>
+        <DebouncedButton onClick={handleSave} disabled={!apiKey} debounceMs={500}>
           {saved ? "Saved!" : "Save"}
-        </Button>
+        </DebouncedButton>
         <Button variant="outline" onClick={handleTest} disabled={status.checking}>
           {status.checking ? "Testing..." : "Test Connection"}
         </Button>
@@ -221,9 +222,9 @@ function OllamaSettings() {
       </div>
 
       <div className="flex items-center gap-2 pt-2">
-        <Button onClick={handleSave}>
+        <DebouncedButton onClick={handleSave} debounceMs={500}>
           {saved ? "Saved!" : "Save"}
-        </Button>
+        </DebouncedButton>
         <Button variant="outline" onClick={handleTest} disabled={status.checking}>
           {status.checking ? "Testing..." : "Test Connection"}
         </Button>
@@ -253,6 +254,81 @@ function ClaudeCodeSettings() {
   )
 }
 
+function CompressionProviderSettings() {
+  const [provider, setProvider] = useState<CompressionProvider>(() => compressionSettings.getProvider())
+  const [saved, setSaved] = useState(false)
+
+  const handleProviderChange = (value: CompressionProvider) => {
+    setProvider(value)
+    compressionSettings.setProvider(value)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const providers: Array<{ value: CompressionProvider; label: string; description: string }> = [
+    {
+      value: "claude-code",
+      label: "Claude Code (Recommended)",
+      description: "Uses Claude Code CLI on the backend (fastest, most reliable)",
+    },
+    {
+      value: "openrouter",
+      label: "OpenRouter",
+      description: "Uses OpenRouter API (requires API key configuration above)",
+    },
+    {
+      value: "ollama",
+      label: "Ollama",
+      description: "Uses local Ollama server (requires Ollama setup above)",
+    },
+  ]
+
+  return (
+    <div className="rounded-lg border border-border p-6 space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold">Compression Provider</h3>
+        <p className="text-sm text-muted-foreground">
+          Choose which LLM provider to use for block compression
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Label>Provider</Label>
+        {providers.map((p) => (
+          <div key={p.value} className="flex items-start space-x-3">
+            <input
+              type="radio"
+              id={`provider-${p.value}`}
+              name="compression-provider"
+              value={p.value}
+              checked={provider === p.value}
+              onChange={(e) => handleProviderChange(e.target.value as CompressionProvider)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <label
+                htmlFor={`provider-${p.value}`}
+                className="text-sm font-medium cursor-pointer"
+              >
+                {p.label}
+              </label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {p.description}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {saved && (
+        <p className="text-sm text-green-600 dark:text-green-400">
+          Compression provider saved!
+        </p>
+      )}
+    </div>
+  )
+}
+
 function SettingsPage() {
   return (
     <div className="space-y-6">
@@ -274,6 +350,11 @@ function SettingsPage() {
           <OllamaSettings />
           <ClaudeCodeSettings />
         </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Compression Settings</h2>
+        <CompressionProviderSettings />
       </div>
     </div>
   )

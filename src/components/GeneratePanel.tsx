@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import { Button } from "@/components/ui/button"
+import { DebouncedButton } from "@/components/ui/debounced-button"
 import { useGenerate } from "@/hooks/useGenerate"
 import { useClaudeGenerate } from "@/hooks/useClaudeGenerate"
 import { GenerationUsage } from "@/components/metrics"
@@ -229,12 +230,13 @@ export function GeneratePanel({ sessionId }: GeneratePanelProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button
+          <DebouncedButton
             type="submit"
             disabled={!prompt.trim() || isGenerating || !isProviderAvailable}
+            debounceMs={300}
           >
             {isGenerating ? "Generating..." : "Generate"}
-          </Button>
+          </DebouncedButton>
           {isGenerating && (
             <Button type="button" variant="outline" onClick={stop}>
               Stop

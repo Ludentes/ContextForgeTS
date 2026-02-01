@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
+import { DebouncedButton } from "@/components/ui/debounced-button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import type { Message, Provider, Zone } from "@/hooks/useBrainstorm"
 
@@ -7,6 +9,7 @@ interface BrainstormDialogProps {
   isOpen: boolean
   onClose: () => void
   messages: Message[]
+  hasUnsavedContent?: boolean
   isStreaming: boolean
   streamingText: string
   provider: Provider
@@ -277,6 +280,7 @@ export function BrainstormDialog({
   isOpen,
   onClose,
   messages,
+  hasUnsavedContent = false,
   isStreaming,
   streamingText,
   provider,
@@ -293,6 +297,7 @@ export function BrainstormDialog({
   onDisableAgentBehaviorChange,
 }: BrainstormDialogProps) {
   const [inputValue, setInputValue] = useState("")
+  const [showCloseWarning, setShowCloseWarning] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -322,16 +327,40 @@ export function BrainstormDialog({
     }
   }, [isOpen])
 
+  // Warn on browser refresh/close if there's unsaved content
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedContent && isOpen) {
+        e.preventDefault()
+        e.returnValue = "" // Required for Chrome
+        return "" // Required for some browsers
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [hasUnsavedContent, isOpen])
+
+  // Handle close request (from Escape key or close button)
+  const handleCloseRequest = useCallback(() => {
+    if (hasUnsavedContent) {
+      setShowCloseWarning(true)
+    } else {
+      onClose()
+    }
+  }, [hasUnsavedContent, onClose])
+
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        onClose()
+        e.preventDefault()
+        handleCloseRequest()
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, onClose])
+  }, [isOpen, handleCloseRequest])
 
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isStreaming) return
@@ -347,13 +376,16 @@ export function BrainstormDialog({
     }
   }
 
-  // Check if provider is available (Claude is not available if disabled)
+  // Check if provider is available
+  // Be optimistic while health checks are pending - allow input immediately
   const isProviderAvailable =
     provider === "ollama"
       ? providerHealth?.ollama?.ok ?? true
       : provider === "openrouter"
         ? providerHealth?.openrouter?.ok ?? true
-        : (providerHealth?.claude?.ok && !providerHealth?.claude?.disabled) ?? true
+        : providerHealth?.claude === null || providerHealth?.claude === undefined
+          ? true // Optimistic: allow input while health check is pending
+          : providerHealth.claude.ok && !providerHealth.claude.disabled
 
   // Disable provider change after first message
   const canChangeProvider = messages.length === 0
@@ -422,7 +454,7 @@ export function BrainstormDialog({
             >
               Clear
             </Button>
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={handleCloseRequest}>
               Close
             </Button>
           </div>
@@ -482,19 +514,36 @@ export function BrainstormDialog({
               disabled={isStreaming || !isProviderAvailable}
               className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none disabled:opacity-50"
             />
-            <Button
+            <DebouncedButton
               onClick={handleSend}
               disabled={!inputValue.trim() || isStreaming || !isProviderAvailable}
               className="self-end"
+              debounceMs={300}
             >
               {isStreaming ? "Sending..." : "Send"}
-            </Button>
+            </DebouncedButton>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Ctrl+Enter to send, Esc to close
           </p>
         </div>
       </div>
+
+      {/* Unsaved content warning dialog */}
+      <ConfirmDialog
+        open={showCloseWarning}
+        onOpenChange={setShowCloseWarning}
+        title="Discard conversation?"
+        description="You have unsaved messages. Are you sure you want to close? Your conversation will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep open"
+        destructive={true}
+        onConfirm={() => {
+          setShowCloseWarning(false)
+          onClearConversation()
+          onClose()
+        }}
+      />
     </div>
   )
 }

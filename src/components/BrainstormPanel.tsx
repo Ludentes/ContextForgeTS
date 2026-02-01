@@ -18,7 +18,7 @@ interface ProviderHealth {
 function useProviderHealth() {
   const [health, setHealth] = useState<ProviderHealth>({
     ollama: null,
-    claude: { ok: false, disabled: true }, // Default to disabled until features load
+    claude: null, // Null until health check completes - allows optimistic input enable
     openrouter: null,
   })
   const features = useQuery(api.features.getFlags)
@@ -183,6 +183,7 @@ export function BrainstormPanel({ sessionId, compact = false }: BrainstormPanelP
           isOpen={brainstorm.isOpen}
           onClose={brainstorm.close}
           messages={brainstorm.messages}
+          hasUnsavedContent={brainstorm.hasUnsavedContent}
           isStreaming={brainstorm.isStreaming}
           streamingText={brainstorm.streamingText}
           provider={brainstorm.provider}
