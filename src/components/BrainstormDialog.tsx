@@ -4,6 +4,11 @@ import { DebouncedButton } from "@/components/ui/debounced-button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import type { Message, Provider, Zone } from "@/hooks/useBrainstorm"
+import ReactMarkdown from 'react-markdown'
+import gfm from 'remark-gfm'
+import { MarkdownComponents } from '@/components/MarkdownComponents';
+import breaks from 'remark-breaks';
+
 
 interface BrainstormDialogProps {
   isOpen: boolean
@@ -29,28 +34,6 @@ interface BrainstormDialogProps {
   // Claude Code agent behavior toggle
   disableAgentBehavior?: boolean
   onDisableAgentBehaviorChange?: (value: boolean) => void
-}
-
-// Simple markdown rendering for assistant messages
-function renderMarkdown(text: string): string {
-  return text
-    // Code blocks
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-muted p-2 rounded-md overflow-x-auto my-2"><code>$2</code></pre>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-muted px-1 rounded text-sm">$1</code>')
-    // Bold
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    // Headers
-    .replace(/^### (.+)$/gm, '<h3 class="font-semibold text-lg mt-3 mb-1">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="font-semibold text-xl mt-4 mb-2">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="font-bold text-2xl mt-4 mb-2">$1</h1>')
-    // Lists
-    .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
-    .replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4">$2</li>')
-    // Line breaks
-    .replace(/\n/g, '<br />')
 }
 
 // Zone selector popover
@@ -188,10 +171,14 @@ function MessageBubble({
         ) : isUser ? (
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <div
-            className="text-sm prose prose-sm dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-          />
+          <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown
+              remarkPlugins={[gfm, breaks]}
+              components={MarkdownComponents}
+            >
+              {message.content || 'No answer'}
+            </ReactMarkdown>
+          </div>
         )}
       </div>
 
@@ -264,10 +251,14 @@ function StreamingMessage({ text }: { text: string }) {
           </span>
         </div>
         {text ? (
-          <div
-            className="text-sm prose prose-sm dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
-          />
+          <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown
+                remarkPlugins={[gfm, breaks]}
+                components={MarkdownComponents}
+              >
+                {text || 'No answer.'}
+              </ReactMarkdown>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">Thinking...</p>
         )}

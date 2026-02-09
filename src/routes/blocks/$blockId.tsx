@@ -14,6 +14,10 @@ import {
   CATEGORY_LABELS,
   isValidBlockType,
 } from "@/lib/blockTypes"
+import ReactMarkdown from "react-markdown"
+import gfm from "remark-gfm"
+import breaks from "remark-breaks"
+import { MarkdownComponents } from "@/components/MarkdownComponents"
 
 // Format date for display
 function formatDate(timestamp: number): string {
@@ -31,16 +35,17 @@ function BlockEditor({ blockId }: { blockId: Id<"blocks"> }) {
   const [type, setType] = useState<string>("note")
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const blockTypesByCategory = useMemo(() => getBlockTypesByCategory(), [])
 
   // Initialize form when block loads
   useEffect(() => {
     if (block) {
       setContent(block.content)
-      // Normalize type to lowercase for matching with BLOCK_TYPE_METADATA
       const normalizedType = block.type.toLowerCase()
       setType(isValidBlockType(normalizedType) ? normalizedType : "note")
       setIsDirty(false)
+      setIsEditing(false)
     }
   }, [block])
 
@@ -68,14 +73,21 @@ function BlockEditor({ blockId }: { blockId: Id<"blocks"> }) {
         type,
       })
       setIsDirty(false)
+      setIsEditing(false)
     } finally {
       setIsSaving(false)
     }
   }
 
-  // Cancel and go back
+  // Cancel edit mode or go back
   const handleCancel = () => {
-    navigate({ to: "/" })
+    if (isEditing) {
+      setContent(block?.content || "")
+      setIsEditing(false)
+      setIsDirty(false)
+    } else {
+      navigate({ to: "/" }) // Go back in browser history
+    }
   }
 
   // Delete block
@@ -128,6 +140,35 @@ function BlockEditor({ blockId }: { blockId: Id<"blocks"> }) {
         </div>
       </div>
 
+      {/* Actions */}
+      <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex gap-3 items-center">
+          <Button variant="destructive" onClick={handleDelete}>
+            Delete Block
+          </Button>
+
+          {/* Dirty indicator */}
+          {isDirty && (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              You have unsaved changes
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCancel}>
+            {isDirty ? "Discard" : "Back"}
+          </Button>
+          {!isEditing ? (
+            <Button onClick={() => setIsEditing(true)}>Edit</Button>
+          ) : (
+            <Button onClick={handleSave} disabled={!isDirty || isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Editor form */}
       <div className="rounded-lg border border-border bg-card p-6 space-y-4">
         {/* Type selector */}
@@ -156,55 +197,37 @@ function BlockEditor({ blockId }: { blockId: Id<"blocks"> }) {
           </select>
         </div>
 
-        {/* Content textarea */}
+        {/* Content display/edit */}
         <div>
-          <label
-            htmlFor="edit-block-content"
-            className="block text-sm font-medium mb-1 text-foreground"
-          >
-            Content
-          </label>
-          <textarea
-            id="edit-block-content"
-            value={content}
-            onChange={(e) => handleContentChange(e.target.value)}
-            rows={12}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y"
-            placeholder="Enter block content..."
-          />
+          {/* Display mode */}
+          {!isEditing && (
+            <div className="prose prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[gfm, breaks]}
+                components={MarkdownComponents}
+              >
+                {content || 'No content yet. Click "Edit" to add content.'}
+              </ReactMarkdown>
+            </div>
+          )}
+
+          {/* Edit mode */}
+          {isEditing && (
+            <textarea
+              id="edit-block-content"
+              value={content}
+              onChange={(e) => handleContentChange(e.target.value)}
+              className="w-full h-[60vh] min-h-50 max-h-[70dvh] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y"
+              placeholder="Enter block content..."
+            />
+          )}
+
+          {/* Character count */}
           <p className="mt-1 text-xs text-muted-foreground">
             {content.length} characters
           </p>
         </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-          >
-            Delete Block
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCancel}>
-              {isDirty ? "Discard" : "Back"}
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!isDirty || isSaving}
-            >
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        </div>
       </div>
-
-      {/* Dirty indicator */}
-      {isDirty && (
-        <p className="text-sm text-amber-600 dark:text-amber-400">
-          You have unsaved changes
-        </p>
-      )}
     </div>
   )
 }
